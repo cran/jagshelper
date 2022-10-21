@@ -1,8 +1,8 @@
 Package: jagshelper
 Type: Package
 Title: Extracting and Visualizing Output from 'jagsUI'
-Version: 0.1.6
-Date: 2022-10-14
+Version: 0.1.8
+Date: 2022-10-20
 Author: Matt Tyers [aut, cre]
 Authors@R: person("Matt", "Tyers", email = "matttyersstat@gmail.com",
     role = c("aut", "cre"))
@@ -24,6 +24,6 @@ Suggests: knitr, rmarkdown, testthat (>= 3.0.0)
 Config/testthat/edition: 3
 VignetteBuilder: knitr
 NeedsCompilation: no
-Packaged: 2022-10-14 10:29:32 UTC; mtyers
+Packaged: 2022-10-21 07:45:02 UTC; mtyers
 Repository: CRAN
-Date/Publication: 2022-10-14 13:22:33 UTC
+Date/Publication: 2022-10-21 08:35:07 UTC

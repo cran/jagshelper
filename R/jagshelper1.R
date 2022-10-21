@@ -604,6 +604,35 @@ envelope <- function(df,
                      col=4, add=FALSE, dark=.3, outline=FALSE,
                      xlab="", ylab="", main=NULL,
                      ylim=NULL, ...) {
+
+
+  # if(!inherits(df,"jagsUI") & !(inherits(df,"data.frame") | inherits(df,"matrix"))) {
+  #   stop("Input must be a data.frame or output from jagsUI::jags() plus parameter name")
+  # }
+  # if(inherits(df,"jagsUI") & length(p)!=1) stop("Need single parameter name in p= argument") ###
+  #
+  # if(inherits(df,"jagsUI") & !is.null(p)) {
+  # # if(class(df)[1]=="jagsUI" & !is.null(p)) {
+  #   simslist <- df$sims.list
+  #   if(all(names(simslist)!=p)) stop("No parameters with matching names") ###
+  #   theparm <- simslist[names(simslist)==p][[1]]
+  #   if(length(dim(theparm))==2) {
+  #     df <- theparm
+  #   } else {
+  #     if(!is.null(row)) df <- theparm[,row,]
+  #     if(!is.null(column)) df <- theparm[,,column]
+  #   }
+  #   if(is.null(main)) {
+  #     if(is.null(row) & is.null(column)) {
+  #       main <- p
+  #     } else {
+  #       if(!is.null(row)) main <- paste0(p,"[",row,",]")
+  #       if(!is.null(column)) main <- paste0(p,"[,",column,"]")
+  #     }
+  #   }
+  # }
+  # if(is.null(main)) main <- ""
+  #
   # ci <- sort(ci)
   # loq <- apply(df, 2, quantile, p=(1-ci)/2, na.rm=T)
   # hiq <- apply(df, 2, quantile, p=1-(1-ci)/2, na.rm=T)
@@ -637,7 +666,7 @@ envelope <- function(df,
   if(inherits(df,"jagsUI") & length(p)!=1) stop("Need single parameter name in p= argument") ###
 
   if(inherits(df,"jagsUI") & !is.null(p)) {
-  # if(class(df)[1]=="jagsUI" & !is.null(p)) {
+    # if(class(df)[1]=="jagsUI" & !is.null(p)) {
     simslist <- df$sims.list
     if(all(names(simslist)!=p)) stop("No parameters with matching names") ###
     theparm <- simslist[names(simslist)==p][[1]]
@@ -681,8 +710,30 @@ envelope <- function(df,
       lines(x,hiq[i,], col=adjustcolor(col,alpha.f=darks[i]), ...=...)
     }
   }
+
   else {
-    for(i in 1:length(ci)) polygon(c(x,rev(x)), c(loq[i,],rev(hiq[i,])), col=adjustcolor(col,alpha.f=dark), border=NA)
+    whichnotna <- unname(apply(loq,2,function(x) !all(is.na(x))))
+    firsts <- lasts <- NA
+    ilist <- whichnotna[1]
+    if(whichnotna[1]) firsts[1] <- 1
+    for(ii in 2:(length(whichnotna)-1)) {
+      if(whichnotna[ii] & !whichnotna[ii-1]) {
+        ilist <- ilist+1
+        firsts[ilist] <- ii
+      }
+      if(whichnotna[ii] & !whichnotna[ii+1]) {
+        lasts[ilist] <- ii
+      }
+    }
+    if(whichnotna[length(whichnotna)]) lasts[ilist] <- length(whichnotna)
+
+    for(ii in 1:length(firsts)) {
+      for(i in 1:length(ci)) {
+        polygon(c(x[firsts[ii]:lasts[ii]],rev(x[firsts[ii]:lasts[ii]])),
+                c(loq[i,firsts[ii]:lasts[ii]],rev(hiq[i,firsts[ii]:lasts[ii]])),
+                col=adjustcolor(col,alpha.f=dark), border=NA)
+      }
+    }
   }
 }
 
@@ -715,6 +766,7 @@ envelope <- function(df,
 #' @param ylim Y-axis limits for plotting.  If the default (`NULL`) is accepted, these will be determined automatically.
 #' @param legend Whether to automatically try to add a legend.  Defaults to `TRUE`.
 #' @param legendnames Optional vector of names for a legend.
+#' @param legendpos Position for optional legend.  Defaults to `"topleft"`.
 #' @param ... additional plotting arguments or arguments to `lines()`
 #' @return `NULL`
 #' @seealso \link{envelope}
@@ -742,7 +794,7 @@ overlayenvelope <- function(df,
                             col=NULL, add=FALSE, dark=.3, outline=FALSE,
                             xlab="", ylab="", main=NULL,
                             ylim=NULL,
-                            legend=TRUE, legendnames=NULL, ...) {
+                            legend=TRUE, legendnames=NULL, legendpos="topleft",...) {
   conditionmet <- F
   ## list of dfs
   # do nothing
@@ -843,7 +895,7 @@ overlayenvelope <- function(df,
     }
   }
   if(legend & !is.null(legendnames)) {
-    legend("topleft",legend=legendnames, fill=adjustcolor(cols, alpha.f=.5), border=cols)
+    legend(legendpos,legend=legendnames, fill=adjustcolor(cols, alpha.f=.5), border=cols)
   }
 }
 
@@ -1293,15 +1345,18 @@ plotRhats <- function(x,
 #' string supplied will be returned.  If the default (`NULL`) is accepted, all parameters will be plotted.
 #' @param minCI Minimum CI width for plotting.  This is intended as a method for excluding far-outlying MCMC
 #' samples when determining the appropriate y-axis limits for plotting.  Defaults to 99%.
+#' @param legendnames Names for optional legend.  If the default `NULL` is accepted, no legend will be drawn.
+#' @param legendpos Position for optional legend.  Defaults to `"topleft"`.
 #' @param ... additional plotting arguments
 #' @return `NULL`
 #' @seealso \link{comparecat}
 #' @author Matt Tyers
 #' @examples
 #' ## This is the same output object twice, but shows functionality.
-#' comparedens(x1=asdf_jags_out, x2=asdf_jags_out, p=c("a","b","sig"))
+#' comparedens(x1=asdf_jags_out, x2=asdf_jags_out, p=c("a","b","sig"),
+#'             legendnames=c("Model 1", "Model 2"))
 #' @export
-comparedens <- function(x1,x2, p=NULL, minCI=0.99, ...) {
+comparedens <- function(x1,x2, p=NULL, minCI=0.99, legendnames=NULL, legendpos="topleft", ...) {
   # if(!inherits(x1,"jagsUI") | !inherits(x2,"jagsUI")) {
   #   stop("Inputs must both a output objects returned from jagsUI::jags().")
   # }
@@ -1349,6 +1404,10 @@ comparedens <- function(x1,x2, p=NULL, minCI=0.99, ...) {
       xxx <- density(parmx2[,which(names(parmx2)==allparms[i])])
       polygon(i+xxx$y/max(xxx$y)*.4, xxx$x, col=adjustcolor(4,alpha.f=.5), border=4)
     }
+  }
+
+  if(!is.null(legendnames)) {
+    legend(legendpos,legend=legendnames, fill=adjustcolor(c(2,4), alpha.f=.5), border=c(2,4))
   }
 }
 
@@ -1400,8 +1459,8 @@ comparecat <- function(x,p=NULL,ci=c(0.5,0.95),ylim=NULL,...) {
   if(!is.null(ylim)) {
     ylims <- ylim
   } else {
-    ylims <- c(min(sapply(parmx, function(x) apply(x,2,quantile,p=min(cilo))),na.rm=T),
-               max(sapply(parmx, function(x) apply(x,2,quantile,p=max(cihi))),na.rm=T))
+    ylims <- c(min(unlist(sapply(parmx, function(x) apply(x,2,quantile,p=min(cilo),na.rm=T)))),
+               max(unlist(sapply(parmx, function(x) apply(x,2,quantile,p=max(cihi),na.rm=T)))))
   }
 
   plot(NA,xlim=c(0,length(allparms)+1), ylim=ylims, ylab="",xlab="",xaxt="n",...=...)
