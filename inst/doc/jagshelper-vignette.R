@@ -32,6 +32,9 @@ plotRhats(SS_out)  # plotting Rhat values
 ## ---- fig.width=6-------------------------------------------------------------
 pairstrace_jags(asdf_jags_out, p=c("a","sig_a"), points=TRUE, parmfrow=c(3,2))
 
+## ---- fig.width=7, fig.height=6-----------------------------------------------
+plotcor_jags(SS_out, p=c("trend","rate","sig"))
+
 ## -----------------------------------------------------------------------------
 out_df <- jags_df(asdf_jags_out)
 str(out_df)
