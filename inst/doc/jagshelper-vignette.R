@@ -41,9 +41,10 @@ str(out_df)
 
 ## ----fig.width=5,fig.height=8-------------------------------------------------
 old_parmfrow <- par("mfrow")  # storing old graphics state
-par(mfrow=c(2,1))
+par(mfrow=c(3,1))
 caterpillar(asdf_jags_out, "a")
 envelope(SS_out, "trend", x=SS_data$x)
+plotdens(asdf_jags_out, "a")
 par(mfrow=old_parmfrow)  # resetting graphics state
 
 ## ----fig.width=5,fig.height=8-------------------------------------------------

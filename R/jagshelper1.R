@@ -358,7 +358,7 @@ nbyname <- function(x, justtotal=FALSE) {
 #'
 #' `Rhat` (Gelman-Rubin Convergence Diagnostic, or Potential Scale Reduction Factor)
 #' is calculated within 'JAGS', and is
-#' commonly used as a measure of convergence for a given paramter node.  Values close
+#' commonly used as a measure of convergence for a given parameter node.  Values close
 #' to 1 are seen as evidence of adequate convergence.
 #' @param x Output object from `jagsUI::jags()`
 #' @param thresh Threshold value (defaults to 1.1)
@@ -1071,7 +1071,7 @@ caterpillar <- function(df,
 #'
 #' `Rhat` (Gelman-Rubin Convergence Diagnostic, or Potential Scale Reduction Factor)
 #' is calculated within 'JAGS', and is
-#' commonly used as a measure of convergence for a given paramter node.  Values close
+#' commonly used as a measure of convergence for a given parameter node.  Values close
 #' to 1 are seen as evidence of adequate convergence.  `n.eff` is also calculated within 'JAGS', and may be interpreted as a crude measure of
 #' effective sample size for a given parameter node.
 #' @param x Output object returned from `jagsUI`
@@ -1132,6 +1132,11 @@ traceworstRhat <- function(x,p=NULL,n.eff=FALSE,margin=NULL,parmfrow=NULL,...) {
     rhats <- rhatlist[[i]]
     if(!is.null(dim(rhats))) {
       if(!is.null(margin)) {
+        domargin <- (max(margin)<=length(dim(rhats)))
+      } else {
+        domargin <- F
+      }
+      if(domargin) {
         if(max(margin)<=length(dim(rhats))) {
           if(!n.eff) maxes <- apply(rhats, MARGIN=margin, max, na.rm=T)
           if(n.eff) maxes <- apply(rhats, MARGIN=margin, min, na.rm=T)
@@ -1141,10 +1146,7 @@ traceworstRhat <- function(x,p=NULL,n.eff=FALSE,margin=NULL,parmfrow=NULL,...) {
             whichone <- whichone1[which.max(whichone1[,2]==imax),]
             thenames <- c(thenames, paste0(pp,"[",paste(whichone,collapse=","),"]"))
           }
-        } else {
-          stop("invalid margin argument")    ##### add functionality of using margin when applicable??  SS_out doesn't work
         }
-
       } else {
         if(length(dim(rhats))>1) {  ##### this might not work as intended for >2d
           if(!n.eff) whichones <- which(rhats==max(rhats,na.rm=T), arr.ind=T)[1,]
@@ -1160,7 +1162,64 @@ traceworstRhat <- function(x,p=NULL,n.eff=FALSE,margin=NULL,parmfrow=NULL,...) {
     }
     tracedens_jags(x,p=thenames,...=...)
   }
-  # if(!is.null(parmfrow)) par(mfrow=parmfrow1)
+
+  # if(!inherits(x,"jagsUI")) stop("Input must be an output object returned from jagsUI::jags().")
+  #
+  # if(!is.null(parmfrow)) {
+  #   parmfrow1 <- par("mfrow")
+  #   par(mfrow=parmfrow)
+  #   on.exit(par(mfrow=parmfrow1))
+  # }
+  # if(!n.eff) {
+  #   if(is.null(p)) {
+  #     rhatlist <- x$Rhat
+  #     p <- names(rhatlist)
+  #   } else {
+  #     rhatlist <- x$Rhat[names(x$Rhat) %in% p]    # do the thing like plist, that allows sig??
+  #   }
+  # } else {
+  #   if(is.null(p)) {
+  #     rhatlist <- x$n.eff
+  #     p <- names(rhatlist)
+  #   } else {
+  #     rhatlist <- x$n.eff[names(x$n.eff) %in% p]    # do the thing like plist, that allows sig??
+  #   }
+  # }
+  # if(length(rhatlist)==0) stop("No parameters with matching names")
+  # for(i in 1:length(rhatlist)) {
+  #   pp <- p[i]
+  #   rhats <- rhatlist[[i]]
+  #   if(!is.null(dim(rhats))) {
+  #     if(!is.null(margin)) {
+  #       if(max(margin)<=length(dim(rhats))) {
+  #         if(!n.eff) maxes <- apply(rhats, MARGIN=margin, max, na.rm=T)
+  #         if(n.eff) maxes <- apply(rhats, MARGIN=margin, min, na.rm=T)
+  #         thenames <- NULL
+  #         for(imax in 1:length(maxes)) {
+  #           whichone1 <- which(rhats==maxes[imax], arr.ind=T)
+  #           whichone <- whichone1[which.max(whichone1[,2]==imax),]
+  #           thenames <- c(thenames, paste0(pp,"[",paste(whichone,collapse=","),"]"))
+  #         }
+  #       } else {
+  #         stop("invalid margin argument")    ##### add functionality of using margin when applicable??  SS_out doesn't work
+  #       }
+  #
+  #     } else {
+  #       if(length(dim(rhats))>1) {  ##### this might not work as intended for >2d
+  #         if(!n.eff) whichones <- which(rhats==max(rhats,na.rm=T), arr.ind=T)[1,]
+  #         if(n.eff) whichones <- which(rhats==min(rhats,na.rm=T), arr.ind=T)[1,]
+  #       } else {
+  #         if(!n.eff) whichones <- which(rhats==max(rhats,na.rm=T), arr.ind=T)[1]
+  #         if(n.eff) whichones <- which(rhats==min(rhats,na.rm=T), arr.ind=T)[1]
+  #       }
+  #       thenames <- paste0(pp,"[",paste(whichones,collapse=","),"]")
+  #     }
+  #   } else {
+  #     thenames <- pp
+  #   }
+  #   tracedens_jags(x,p=thenames,...=...)
+  # }
+  # # if(!is.null(parmfrow)) par(mfrow=parmfrow1)
 }
 
 
@@ -1194,7 +1253,7 @@ rcolors <- function(n) {
 #'
 #' `Rhat` (Gelman-Rubin Convergence Diagnostic, or Potential Scale Reduction Factor)
 #' is calculated within 'JAGS', and is
-#' commonly used as a measure of convergence for a given paramter node.  Values close
+#' commonly used as a measure of convergence for a given parameter node.  Values close
 #' to 1 are seen as evidence of adequate convergence.  `n.eff` is also calculated within 'JAGS', and may be interpreted as a crude measure of
 #' effective sample size for a given parameter node.
 #' @param x Output object returned from `jagsUI`
@@ -1471,14 +1530,17 @@ comparecat <- function(x,p=NULL,ci=c(0.5,0.95),ylim=NULL,...) {
   plot(NA,xlim=c(0,length(allparms)+1), ylim=ylims, ylab="",xlab="",xaxt="n",...=...)
   axis(1,at=1:length(allparms),labels=allparms,las=2)
   # abline(v=1:length(allparms),lty=3)
+
+  cols <- c(4,2,3,rcolors(100))[1:length(x)]
+
   for(i in 1:length(allparms)) {
     for(ii in 1:length(x)) {
       if(allparms[i] %in% names(parmx[[ii]])) {
         xplot <- i+(seq(-.3,.3,length.out=length(x)))[ii]
         vec <- parmx[[ii]][,which(names(parmx[[ii]])==allparms[i])]
         segments(x0=rep(xplot,2), y0=quantile(vec,p=cilo), y1=quantile(vec,p=cihi),
-                 lwd=lwds, lend=1, col=ii+1)
-        points(xplot,median(vec),pch=16,col=ii+1)
+                 lwd=lwds, lend=1, col=cols[ii])  #col=ii+1
+        points(xplot,median(vec),pch=16,col=cols[ii])  #col=ii+1
       }
     }
   }
@@ -1680,4 +1742,169 @@ plotcor_jags <- function(x, p=NULL, exact=FALSE, mincor=0, maxn=4, maxcex=1, leg
     text(x=.5*(legendl+legendr), y=.5*(legendt+legendb), labels=legendcors, cex=.7)
   }
 }
+
+
+#' Plot kernel densities of single parameter nodes
+#' @description Produces a kernel density plot of a single or multiple parameter nodes (overlayed).
+#'
+#' Input can be of multiple possible formats: either a single or list of output objects
+#'  from `jagsUI` with an associated vector of parameter names, or a vector or `data.frame`
+#'  of posterior samples.
+#' @param df Input object for plotting.  See examples below.
+#' @param p Vector of parameter names, if `df` is given as a single or list of output objects
+#'  from `jagsUI`
+#' @param exact Whether the `p=` argument should match the parameter name exactly.  See
+#' \link{jags_df} for details.
+#' @param add Whether to add to an existing plot (`TRUE`) or produce a new plot.
+#' Defaults to `FALSE`.
+#' @param col Vector of colors for plotting.  If the default (`NULL`) is accepted,
+#' colors will be automatically selected.
+#' @param shade Whether to shade the regions below the kernel density curve(s).
+#' Defaults to `TRUE`.
+#' @param lwd Line width for kernel density curves.  Defaults to `2`.  Note: setting
+#' this to `0` (or `FALSE`) will suppress lines.
+#' @param minCI Minimum CI width to include for all density curves.  Defaults to 99%.
+#' @param legend Whether to plot a legend.  Defaults to `TRUE`.
+#' @param legendpos Position for automatic legend.  Defaults to `"topleft"`.
+#' @param legendnames Names for legend
+#' @param main Plot title.  Defaults to "".
+#' @param xlab X-axis label.  Defaults to "".
+#' @param ylab Y-axis label.  Defaults to "Density".
+#' @param ... Optional plotting arguments
+#' @return `NULL`
+#' @seealso \link{comparedens}, \link{comparecat}
+#' @author Matt Tyers
+#' @examples
+#' ## jagsUI object with a single parameter
+#' plotdens(asdf_jags_out, p="b1")
+#'
+#' ## jagsUI object with multiple nodes of a parameter
+#' plotdens(asdf_jags_out, p="a")
+#'
+#' ## jagsUI object with multiple parameter nodes
+#' plotdens(asdf_jags_out, p=c("a[1]","a[2]","a[3]"))
+#'
+#' ## data.frame with multiple columns
+#' plotdens(jags_df(asdf_jags_out, p="a"))
+#'
+#' ## list of jagsUI objects with a single parameter name
+#' plotdens(list(asdf_jags_out,asdf_jags_out,asdf_jags_out), p="b1")
+#'
+#' ## list of jagsUI objects with a vector of parameter names
+#' plotdens(list(asdf_jags_out,asdf_jags_out,asdf_jags_out), p=c("a[1]","a[2]","a[3]"))
+#' @export
+plotdens <- function(df, p=NULL, exact=FALSE, add=FALSE,
+                      col=NULL, shade=TRUE, lwd=2, minCI=0.99,
+                      legend=TRUE, legendpos="topleft", legendnames=NULL,
+                      main=NULL, xlab="", ylab="Density",...) {  #...
+  dflist <- NULL # initial instance to check later
+
+  ## - single density
+  # vector
+  # df <- jags_df(asdf_jags_out, p="b0")
+  # if(inherits(df, "data.frame")) {
+  #   if(ncol(df)==1) {
+  #     dflist <- list(df[,1])
+  #   }
+  # }
+  # df <- jags_df(asdf_jags_out, p="b0")[,1]
+  if(inherits(df,"numeric") & is.null(dim(df))) {
+    dflist <- list(df)
+  }
+
+  # df <- jags_df(asdf_jags_out, p="a")
+  if(inherits(df, "data.frame")) {
+    dflist <- as.list(df)
+  }
+
+  # df <- as.matrix(jags_df(asdf_jags_out, p="a"))
+  if(inherits(df, "matrix")) {
+    dflist <- as.list(as.data.frame(df))
+  }
+
+  # jags & p
+  # df <- asdf_jags_out
+  # p <- "a"
+  if(inherits(df, "jagsUI")) {
+    dflist1 <- jags_df(df, p=p, exact=exact)  # this can be multiple
+    dflist <- as.list(dflist1)
+  }
+
+  ## - multiple densities
+  # df <- list(asdf_jags_out, asdf_jags_out, asdf_jags_out)
+  # p <- c("a[1]","a[2]","a[3]")
+  # p <- "b1"
+  if(inherits(df,"list")) {
+  # list of jags, list of p (same length)
+    if(length(df)==length(p)) {
+      dflist <- list()
+      for(i in 1:length(df)) {
+        suppressWarnings(dflist[[i]] <- tryCatch(jags_df(x=df[[i]], p=p[i], exact=T)[,1], error=function(e) NA))
+        if(all(is.na(dflist[[i]]))) stop("No parameter names are an exact match to p= argument.")
+      }
+    } else {
+  # list of jags, one p
+      if(length(p)==1) {
+        dflist <- list()
+        for(i in 1:length(df)) {
+          suppressWarnings(dflist[[i]] <- tryCatch(jags_df(x=df[[i]], p=p, exact=T)[,1], error=function(e) NA))
+          if(all(is.na(dflist[[i]]))) stop("No parameter names are an exact match to p= argument.")
+        }
+      } else {
+        stop("p= argument must be of length 1 or length equal to the length of jagsUI object list")
+      }
+    }
+
+  }
+
+  if(is.null(dflist)) stop("No allowable input detected.  See help(plotdens) for details.")
+  # alldims <- sapply(dflist, dim)
+  # for(i in 1:length(alldims)) {
+  #   if(!is.null(alldims[[i]])) stop("Multiple columns detected for at least one list element")
+  # }
+
+  # make xlims
+  los <- sapply(dflist, quantile, p=0.5*(1-minCI), na.rm=T)
+  his <- sapply(dflist, quantile, p=1-(0.5*(1-minCI)), na.rm=T)
+  xlims <- range(los, his, na.rm=T)
+
+  # make denses
+  denses <- lapply(dflist, density)
+  xs <- sapply(denses, function(x) x$x)
+  ys <- sapply(denses, function(x) x$y)
+
+  # plot denses
+  if(is.null(main) & length(p)==1) main <- p
+  if(is.null(col)) col <- c(4,2,3,rcolors(100))[1:length(dflist)]
+  if(!add) {
+    plot(NA, xlim=xlims, ylim=range(ys), xlab=xlab, ylab=ylab, main=main,...=...)
+  }
+  for(i in 1:length(dflist)) {
+    if(shade) {
+      polygon(x=c(xs[1,i], rev(xs[,i])),
+            y=c(ys[1,i], rev(ys[,i])),
+            border=NA, col=adjustcolor(col[i],alpha.f=.3))
+    }
+    lines(denses[[i]], col=col[i], lwd=lwd)
+  }
+
+  # legend
+  if(!is.null(names(dflist)) & is.null(legendnames)) legendnames <- names(dflist)
+  if(legend & !is.null(legendnames)) {
+    legend(legendpos, lwd=lwd, col=col, legend=legendnames)
+  }
+}
+# plotdens(df=asdf_jags_out, p="b1")
+# plotdens(asdf_jags_out, p="a")
+# plotdens(jags_df(asdf_jags_out, p="a"))
+# plotdens(df=list(asdf_jags_out,asdf_jags_out,asdf_jags_out), p="a")
+# plotdens(df=list(asdf_jags_out,asdf_jags_out,asdf_jags_out), p="a[1]")
+# plotdens(list(asdf_jags_out,asdf_jags_out,asdf_jags_out), p="b1",lwd=F)
+
+
+
+
+
+
+
 
