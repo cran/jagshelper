@@ -1,4 +1,4 @@
-## ---- include = FALSE---------------------------------------------------------
+## ----include = FALSE----------------------------------------------------------
 knitr::opts_chunk$set(
   collapse = TRUE,
   comment = "#>",
@@ -29,10 +29,17 @@ check_Rhat(SS_out)  # proportion of Rhats below a threshold of 1.1
 ## ----fig.width=6,fig.height=5-------------------------------------------------
 plotRhats(SS_out)  # plotting Rhat values
 
-## ---- fig.width=6-------------------------------------------------------------
+## ----fig.width=7, fig.height=4------------------------------------------------
+old_parmfrow <- par("mfrow")   # storing previous graphics state
+par(mfrow=c(1, 2))
+qq_postpred(ypp=SS_out, p="ypp", y=SS_data$y)
+ts_postpred(ypp=SS_out, p="ypp", y=SS_data$y)
+par(mfrow=old_parmfrow)        # restoring previous graphics state
+
+## ----fig.width=6--------------------------------------------------------------
 pairstrace_jags(asdf_jags_out, p=c("a","sig_a"), points=TRUE, parmfrow=c(3,2))
 
-## ---- fig.width=7, fig.height=6-----------------------------------------------
+## ----fig.width=7, fig.height=6------------------------------------------------
 plotcor_jags(SS_out, p=c("trend","rate","sig"))
 
 ## -----------------------------------------------------------------------------
@@ -70,4 +77,13 @@ overlayenvelope(df=SS_out, p="cycle_s")
 
 ## usage with a single jagsUI output object and multiple parameters
 overlayenvelope(df=SS_out, p=c("trend","rate"))
+
+## ----eval=FALSE---------------------------------------------------------------
+#  ...
+#  sig ~ dunif(0, 10)   # this is the parameter that is used elsewhere in the model
+#  sig_prior ~ dunif(0, 10)  # this is only used to give samples of the prior
+#  ...
+
+## -----------------------------------------------------------------------------
+comparepriors(asdf_prior_jags_out, parmfrow=c(2,3))
 

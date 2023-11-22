@@ -9,8 +9,10 @@ comparedens(
   x2,
   p = NULL,
   minCI = 0.99,
+  ylim = NULL,
   legendnames = NULL,
   legendpos = "topleft",
+  col = c(4, 2),
   ...
 )
 }
@@ -25,9 +27,13 @@ string supplied will be returned.  If the default (\code{NULL}) is accepted, all
 \item{minCI}{Minimum CI width for plotting.  This is intended as a method for excluding far-outlying MCMC
 samples when determining the appropriate y-axis limits for plotting.  Defaults to 99\%.}
 
+\item{ylim}{Y-axis limits for plotting.  If the default (\code{NULL}) is accepted, limits will be automatically determined.}
+
 \item{legendnames}{Names for optional legend.  If the default \code{NULL} is accepted, no legend will be drawn.}
 
 \item{legendpos}{Position for optional legend.  Defaults to \code{"topleft"}.}
+
+\item{col}{Colors for kernel density plots.  Defaults to colors \code{4} and \code{2} (blue and red).}
 
 \item{...}{additional plotting arguments}
 }
@@ -47,7 +53,7 @@ comparedens(x1=asdf_jags_out, x2=asdf_jags_out, p=c("a","b","sig"),
             legendnames=c("Model 1", "Model 2"))
 }
 \seealso{
-\link{comparecat}
+\link{comparecat}, \link{comparepriors}
 }
 \author{
 Matt Tyers

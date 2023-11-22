@@ -21,7 +21,8 @@ skeleton <- function(NAME="NAME") {
 cat("
 library(jagsUI)
 
-# specify model, which is written to an external file
+# specify model, which is written to a temporary file
+",NAME,"_jags <- tempfile()
 cat('model {
   for(i in 1:n) {
     y[i] ~ dnorm(mu[i], tau)
@@ -39,7 +40,7 @@ cat('model {
 
   tau_a <- pow(sig_a, -2)
   sig_a ~ dunif(0, 10)
-}', file=\"",NAME,"_jags\")
+}', file=",NAME,"_jags)
 
 
 # simulate data to go with the example model
@@ -58,11 +59,12 @@ y <- rnorm(n, mean=grp-x)
 # JAGS controls
 niter <- 10000
 ncores <- 3
+# ncores <- min(10, parallel::detectCores()-1)
 
 {
   tstart <- Sys.time()
   print(tstart)
-  ",NAME,"_jags_out <- jagsUI::jags(model.file=\"",NAME,"_jags\", data=",NAME,"_data,
+  ",NAME,"_jags_out <- jagsUI::jags(model.file=",NAME,"_jags, data=",NAME,"_data,
                              parameters.to.save=c(\"b0\",\"b1\",\"sig\",\"a\",\"sig_a\"),
                              n.chains=ncores, parallel=T, n.iter=niter,
                              n.burnin=niter/2, n.thin=niter/2000)
@@ -120,24 +122,73 @@ jags_df <- function(x, p=NULL, exact=FALSE) {
 #' str(justsig)
 #' @export
 pull_post <- function(x, p=NULL, exact=FALSE) {
-  # x[,substr(names(x),1,nchar(p))==p]
+  # # x[,substr(names(x),1,nchar(p))==p]
+  # if(!inherits(x,"data.frame")) stop("Input must be a data.frame")
+  #
+  # if(is.null(p)) {
+  #   these <- rep(T, length(names(x)))
+  # } else {
+  #   these <- rep(F, length(names(x)))  ## used to be F
+  #   for(i in 1:length(p)) {
+  #     if(exact) {
+  #       these[names(x)==p[i]] <- T
+  #     } else {
+  #       these[substr(names(x),1,nchar(p[i]))==p[i]] <- T
+  #     }
+  #   }
+  #   if(sum(these)==0) warning("No parameters with matching names, returning empty data.frame")
+  # }
+  # return(x[these])
   if(!inherits(x,"data.frame")) stop("Input must be a data.frame")
 
   if(is.null(p)) {
     these <- rep(T, length(names(x)))
+    return(x)
   } else {
     these <- rep(F, length(names(x)))  ## used to be F
+    asalist <- list()
     for(i in 1:length(p)) {
       if(exact) {
         these[names(x)==p[i]] <- T
+        asalist[[i]] <- x[names(x)==p[i]]
       } else {
         these[substr(names(x),1,nchar(p[i]))==p[i]] <- T
+        asalist[[i]] <- x[substr(names(x),1,nchar(p[i]))==p[i]]
       }
     }
     if(sum(these)==0) warning("No parameters with matching names, returning empty data.frame")
   }
-  return(x[these])
+  # return(x[these])
+  return(do.call(cbind, asalist))
 }
+
+# pull_post1 <- function(x, p=NULL, exact=FALSE) {
+#   # x[,substr(names(x),1,nchar(p))==p]
+#   if(!inherits(x,"data.frame")) stop("Input must be a data.frame")
+#
+#   if(is.null(p)) {
+#     these <- rep(T, length(names(x)))
+#   } else {
+#     these <- rep(F, length(names(x)))  ## used to be F
+#     asalist <- list()
+#     for(i in 1:length(p)) {
+#       if(exact) {
+#         these[names(x)==p[i]] <- T
+#         asalist[[i]] <- x[names(x)==p[i]]
+#       } else {
+#         these[substr(names(x),1,nchar(p[i]))==p[i]] <- T
+#         asalist[[i]] <- x[substr(names(x),1,nchar(p[i]))==p[i]]
+#       }
+#     }
+#     if(sum(these)==0) warning("No parameters with matching names, returning empty data.frame")
+#   }
+#   # return(x[these])
+#   return(do.call(cbind, asalist))
+# }
+# xx <- pull_post1(out_df, p=c("a","sig","b"))
+# xx <- pull_post1(out_df, p=c("a","sig","b"), exact=T)
+# xx <- pull_post1(out_df, p=c("a","sig","b","bob"), exact=T)
+# xx <- pull_post1(out_df, p=c("bob"), exact=T)
 
 
 #' Plist
@@ -147,6 +198,8 @@ pull_post <- function(x, p=NULL, exact=FALSE) {
 #' each MCMC iteration.
 #' @param x `jagsUI` output object
 #' @param p String to subset parameter names, if a subset is desired
+#' @param exact Whether `p` should be an exact match (`TRUE`) or just match the
+#' beginning of the string (`FALSE`).  Defaults to `FALSE`.
 #' @return A `list` with an element associated with each parameter.  Each element
 #' will be a matrix with a column associated with each MCMC chain and a row for
 #' each MCMC iteration.
@@ -160,7 +213,7 @@ pull_post <- function(x, p=NULL, exact=FALSE) {
 #' a_plist <- jags_plist(asdf_jags_out, p=c("a","sig_a"))
 #' str(a_plist)
 #' @export
-jags_plist <- function(x, p=NULL) {
+jags_plist <- function(x, p=NULL, exact=FALSE) {
   if(!inherits(x,"jagsUI")) stop("Input must be an output object returned from jagsUI::jags().")
 
   x_dflist <- lapply(x$samples, as.data.frame)
@@ -170,7 +223,12 @@ jags_plist <- function(x, p=NULL) {
   these <- rep(F, length(x2))
   if (!is.null(p)) {
     for(i in 1:length(p)) {
-      these[substr(names(x2), 1, nchar(p[i])) == p[i]] <- T
+      if(!exact) {
+        these[substr(names(x2), 1, nchar(p[i])) == p[i]] <- T
+      } else {
+        these[names(x2) == p[i]] <- T
+      }
+      # these[sapply(strsplit(names(x2), split="\\["), FUN="[", 1)==p[i]] <- T   # this is a weird hack
     }
     x2 <- x2[these]
   }
@@ -182,6 +240,8 @@ jags_plist <- function(x, p=NULL) {
 #' @description Trace plot of a whole `jagsUI` object, or optional subset of parameter nodes.
 #' @param x Posterior `jagsUI` object
 #' @param p Parameter name for subsetting: if this is specified, only parameters with names beginning with this string will be plotted.
+#' @param exact Whether `p` should be an exact match (`TRUE`) or just match the
+#' beginning of the string (`FALSE`).  Defaults to `FALSE`.
 #' @param parmfrow Optional call to `par(mfrow)` for the number of rows & columns of plot window.  Returns the graphics device to previous state afterward.
 #' @param lwd Line width for plotting.  Defaults to 1.
 #' @param ... additional plotting arguments
@@ -193,9 +253,9 @@ jags_plist <- function(x, p=NULL) {
 #' trace_jags(asdf_jags_out, parmfrow=c(4,2))
 #' trace_jags(asdf_jags_out, p="a", parmfrow=c(3,1))
 #' @export
-trace_jags <- function(x,p=NULL,parmfrow=NULL,lwd=1,...) {
+trace_jags <- function(x,p=NULL,exact=FALSE,parmfrow=NULL,lwd=1,...) {
   if(!inherits(x,"jagsUI")) stop("Input must be an output object returned from jagsUI::jags().")
-  suppressWarnings(x_plist <- jags_plist(x, p = p))
+  suppressWarnings(x_plist <- jags_plist(x, p = p, exact=exact))
   if(length(x_plist)==0) stop("No parameters with matching names")
   if(!is.null(parmfrow)) {
     parmfrow1 <- par("mfrow")
@@ -218,6 +278,8 @@ trace_jags <- function(x,p=NULL,parmfrow=NULL,lwd=1,...) {
 #' @description By-chain kernel densities of a whole `jagsUI` object, or optional subset of parameter nodes.
 #' @param x Posterior `jagsUI` object
 #' @param p Parameter name for subsetting: if this is specified, only parameters with names beginning with this string will be plotted.
+#' @param exact Whether `p` should be an exact match (`TRUE`) or just match the
+#' beginning of the string (`FALSE`).  Defaults to `FALSE`.
 #' @param parmfrow Optional call to `par(mfrow)` for the number of rows & columns of plot window.  Returns the graphics device to previous state afterward.
 #' @param lwd Line width for plotting.  Defaults to 1.
 #' @param ... additional plotting arguments
@@ -229,9 +291,9 @@ trace_jags <- function(x,p=NULL,parmfrow=NULL,lwd=1,...) {
 #' chaindens_jags(asdf_jags_out, parmfrow=c(4,2))
 #' chaindens_jags(x=asdf_jags_out, p="a", parmfrow=c(3,1))
 #' @export
-chaindens_jags <- function(x,p=NULL,parmfrow=NULL,lwd=1,...) {
+chaindens_jags <- function(x,p=NULL,exact=FALSE,parmfrow=NULL,lwd=1,...) {
   if(!inherits(x,"jagsUI")) stop("Input must be an output object returned from jagsUI::jags().")
-  suppressWarnings(x_plist <- jags_plist(x, p = p))
+  suppressWarnings(x_plist <- jags_plist(x, p = p, exact=exact))
   if(length(x_plist)==0) stop("No parameters with matching names")
   if(!is.null(parmfrow)) {
     parmfrow1 <- par("mfrow")
@@ -258,6 +320,8 @@ chaindens_jags <- function(x,p=NULL,parmfrow=NULL,lwd=1,...) {
 #' @description Combination of trace plots and by-chain kernel densities of a whole `jagsUI` object, or optional subset of parameter nodes.
 #' @param x Posterior `jagsUI` object
 #' @param p Parameter name for subsetting: if this is specified, only parameters with names beginning with this string will be plotted.
+#' @param exact Whether `p` should be an exact match (`TRUE`) or just match the
+#' beginning of the string (`FALSE`).  Defaults to `FALSE`.
 #' @param parmfrow Optional call to `par(mfrow)` for the number of rows & columns of plot window.  Returns the graphics device to previous state afterward.
 #' @param lwd Line width for plotting.  Defaults to 1.
 #' @param shade Whether to add semi-transparent shading to by-chain kernel densities.  Defaults to `TRUE`.
@@ -270,10 +334,10 @@ chaindens_jags <- function(x,p=NULL,parmfrow=NULL,lwd=1,...) {
 #' tracedens_jags(asdf_jags_out, parmfrow=c(4,2))
 #' tracedens_jags(asdf_jags_out, p="a", parmfrow=c(3,1))
 #' @export
-tracedens_jags <- function (x, p = NULL, parmfrow = NULL, lwd = 1, shade=TRUE, ...)
+tracedens_jags <- function (x, p = NULL, exact=FALSE, parmfrow = NULL, lwd = 1, shade=TRUE, ...)
 {
   if(!inherits(x,"jagsUI")) stop("Input must be an output object returned from jagsUI::jags().")
-  suppressWarnings(x_plist <- jags_plist(x, p = p))
+  suppressWarnings(x_plist <- jags_plist(x, p = p, exact=exact))
   if(length(x_plist)==0) stop("No parameters with matching names")
   if (!is.null(parmfrow)) {
     parmfrow1 <- par("mfrow")
@@ -363,7 +427,7 @@ nbyname <- function(x, justtotal=FALSE) {
 #' @param x Output object from `jagsUI::jags()`
 #' @param thresh Threshold value (defaults to 1.1)
 #' @return Numeric (named) giving the proportion of Rhat values below the given threshold.
-#' @seealso \link{check_neff}, \link{traceworstRhat}, \link{plotRhats}
+#' @seealso \link{check_neff}, \link{traceworstRhat}, \link{plotRhats}, \link{qq_postpred}, \link{ts_postpred}
 #' @author Matt Tyers
 #' @references Gelman, A., & Rubin, D. B. (1992). Inference from Iterative Simulation
 #' Using Multiple Sequences. *Statistical Science, 7*(4), 457–472. http://www.jstor.org/stable/2246093
@@ -384,7 +448,7 @@ check_Rhat <- function(x, thresh=1.1) {
 #' @param x Output object from `jagsUI::jags()`
 #' @param thresh Threshold value (defaults to 500)
 #' @return Numeric (named) giving the proportion of `n.eff` values above the given threshold.
-#' @seealso \link{check_Rhat}
+#' @seealso \link{check_Rhat}, \link{traceworstRhat}, \link{plotRhats}, \link{qq_postpred}, \link{ts_postpred}
 #' @author Matt Tyers
 #' @examples
 #' check_neff(SS_out)
@@ -434,10 +498,7 @@ expit <- function(x) exp(x)/(1+exp(x))
 #' @seealso \link{tracedens_jags}, \link{trace_jags}, \link{trace_df}, \link{chaindens_line}
 #' @author Matt Tyers
 #' @examples
-#' out_df <- jags_df(asdf_jags_out)
-#'
-#' b1 <- pull_post(out_df,"b1")
-#' a <- pull_post(out_df,"a")
+#' b1 <- jags_df(asdf_jags_out, p="b1")
 #'
 #' trace_line(b1, nline=3, main="b1")
 #' @export
@@ -464,10 +525,7 @@ trace_line <- function(x, nline, lwd=1, main="", ...) {
 #' @seealso \link{tracedens_jags}, \link{chaindens_jags}, \link{chaindens_df}
 #' @author Matt Tyers
 #' @examples
-#' out_df <- jags_df(asdf_jags_out)
-#'
-#' b1 <- pull_post(out_df,"b1")
-#' a <- pull_post(out_df,"a")
+#' b1 <- jags_df(asdf_jags_out, p="b1")
 #'
 #' chaindens_line(b1, nline=3, main="b1")
 #' @export
@@ -500,17 +558,12 @@ chaindens_line <- function(x, nline, lwd=1, main="", ...) {
 #' @seealso \link{tracedens_jags}, \link{trace_jags}, \link{trace_line}
 #' @author Matt Tyers
 #' @examples
-#' out_df <- jags_df(asdf_jags_out)
-#'
-#' b1 <- pull_post(out_df,"b1")
-#' a <- pull_post(out_df,"a")
-#'
-#' trace_df(a, nline=3, parmfrow=c(3,1))
+#' a <- jags_df(asdf_jags_out, p="a")
 #'
 #' trace_df(a, nline=3, parmfrow=c(3,1))
 #' @export
 trace_df <- function(df, nline, parmfrow=NULL, ...) {
-  if(!inherits(df,"data.frame")) stop("Input must be a data.frame")
+  if(!inherits(df,c("data.frame","matrix"))) stop("Input must be a data.frame")
   if(!is.null(parmfrow)) {
     parmfrow1 <- par("mfrow")
     par(mfrow=parmfrow)
@@ -521,7 +574,8 @@ trace_df <- function(df, nline, parmfrow=NULL, ...) {
     trace_line(df,nline=nline,...=...)
   } else {
   for(i in 1:ncol(df)) {
-    trace_line(df[,i],main=names(df)[i],nline=nline,...=...)
+    # trace_line(df[,i],main=names(df)[i],nline=nline,...=...)
+    trace_line(df[,i],main=colnames(df)[i],nline=nline,...=...)
   }}
   # if(!is.null(parmfrow)) par(mfrow=parmfrow1)
 }
@@ -536,24 +590,20 @@ trace_df <- function(df, nline, parmfrow=NULL, ...) {
 #' @seealso \link{tracedens_jags}, \link{trace_jags}, \link{trace_line}
 #' @author Matt Tyers
 #' @examples
-#' out_df <- jags_df(asdf_jags_out)
-#'
-#' b1 <- pull_post(out_df,"b1")
-#' a <- pull_post(out_df,"a")
-#'
-#' trace_df(a, nline=3, parmfrow=c(3,1))
+#' a <- jags_df(asdf_jags_out, p="a")
 #'
 #' chaindens_df(a, nline=3, parmfrow=c(3,1))
 #' @export
 chaindens_df <- function(df, nline, parmfrow=NULL, ...) {
-  if(!inherits(df,"data.frame")) stop("Input must be a data.frame")
+  if(!inherits(df,c("data.frame","matrix"))) stop("Input must be a data.frame")
   if(!is.null(parmfrow)) {
     parmfrow1 <- par("mfrow")
     par(mfrow=parmfrow)
     on.exit(par(mfrow=parmfrow1))
   }
   for(i in 1:ncol(df)) {
-    chaindens_line(df[,i],main=names(df)[i],nline=nline,...=...)
+    # chaindens_line(df[,i],main=names(df)[i],nline=nline,...=...)
+    chaindens_line(df[,i],main=colnames(df)[i],nline=nline,...=...)
   }
   # if(!is.null(parmfrow)) par(mfrow=parmfrow1)
 }
@@ -589,8 +639,7 @@ chaindens_df <- function(df, nline, parmfrow=NULL, ...) {
 #' @author Matt Tyers
 #' @examples
 #' ## usage with input data.frame
-#' SS_df <- jags_df(SS_out)
-#' trend <- pull_post(SS_df, "trend")
+#' trend <- jags_df(SS_out, p="trend")
 #' envelope(trend, x=SS_data$x)
 #'
 #' ## usage with jagsUI object
@@ -928,6 +977,7 @@ overlayenvelope <- function(df,
 #' @param xlab X-axis label
 #' @param ylab Y-axis label
 #' @param main Plot title.  If the default (`NULL`) is accepted and argument `p` is used, `p` will be used for the title.
+#' @param ylim Y-axis limits.  If the default (`NULL`) is accepted, the limits will be determined automatically.
 #' @param xax Vector of possible x-axis tick labels.  Defaults to the `data.frame` column names.
 #' @param medlwd Line width of median line
 #' @param medwd Relative width of median line.  Defaults to 1, perhaps smaller numbers will look better?
@@ -937,11 +987,7 @@ overlayenvelope <- function(df,
 #' @author Matt Tyers
 #' @examples
 #' ## usage with input data.frame
-#' data(asdf_jags_out)
-#' out_df <- jags_df(asdf_jags_out)
-#'
-#' b1 <- pull_post(out_df,"b1")
-#' a <- pull_post(out_df,"a")
+#' a <- jags_df(asdf_jags_out, p="a")
 #'
 #' caterpillar(a)
 #' caterpillar(a, ci=seq(.1,.9,by=.1))
@@ -964,7 +1010,7 @@ caterpillar <- function(df,
                         median=TRUE, mean=FALSE,
                         ci=c(0.5,0.95),
                         lwd=1, col=4, add=FALSE,
-                        xlab="", ylab="", main=NULL,
+                        xlab="", ylab="", main=NULL, ylim=NULL,
                         xax=NA,
                         medlwd=lwd, medwd=1,...) {
   # ci <- rev(sort(ci))
@@ -990,7 +1036,7 @@ caterpillar <- function(df,
   # if(mean) points(x,colMeans(df, na.rm=T), pch=16, col=col)
   # for(i in 1:length(ci)) segments(x0=x,x1=x,y0=loq[i,],y1=hiq[i,],col=col,lwd=lwds[i],lend=1)
 
-  if(!inherits(df,"jagsUI") & !inherits(df,"data.frame")) {
+  if(!inherits(df,"jagsUI") & !inherits(df,c("matrix","data.frame"))) {  ## put matrix in here
     stop("Input must be a data.frame or output from jagsUI::jags() plus parameter name")
   }
   if(inherits(df,"jagsUI") & length(p)!=1) stop("Need single parameter name in p= argument") ###
@@ -1031,7 +1077,8 @@ caterpillar <- function(df,
   if(all(is.na(xax))) xax<-names(df)
   lwds <- (1+2*(1:length(ci)-1))*lwd
   if(!add) {
-    plot(NA, type='l', ylim=range(loq,hiq,na.rm=T), xlim=range(x-(.2*d),x+(.2*d)), xlab=xlab, ylab=ylab, main=main, xaxt="n", ...=...)
+    if(is.null(ylim)) ylim <- range(loq,hiq,na.rm=T)
+    plot(NA, type='l', xlim=range(x-(.2*d),x+(.2*d)), xlab=xlab, ylab=ylab, main=main, ylim=ylim, xaxt="n", ...=...)
     axis(1,x,labels=xax)
   }
   if(median) {
@@ -1047,6 +1094,13 @@ caterpillar <- function(df,
 #' A simple model, equivalent to that produced by the output produced by `\link{skeleton}`.
 #'
 "asdf_jags_out"
+
+#' Example data: asdf prior jags out
+#'
+#' A simple model, equivalent to that produced by the output produced by `\link{skeleton}`,
+#' with the addition of prior samples for all parameters.
+#'
+"asdf_prior_jags_out"
 
 #' Example data: SS JAGS out
 #'
@@ -1084,7 +1138,7 @@ caterpillar <- function(df,
 #' @param parmfrow Optional call to `par(mfrow)` for the number of rows & columns of plot window.  Returns the graphics device to previous state afterward.
 #' @param ... additional plotting arguments or arguments to `tracedens_jags()`
 #' @return `NULL`
-#' @seealso \link{plotRhats}, \link{check_Rhat}
+#' @seealso \link{plotRhats}, \link{check_Rhat}, \link{qq_postpred}, \link{ts_postpred}
 #' @author Matt Tyers
 #' @references Gelman, A., & Rubin, D. B. (1992). Inference from Iterative Simulation
 #' Using Multiple Sequences. *Statistical Science, 7*(4), 457–472. http://www.jstor.org/stable/2246093
@@ -1130,6 +1184,7 @@ traceworstRhat <- function(x,p=NULL,n.eff=FALSE,margin=NULL,parmfrow=NULL,...) {
   for(i in 1:length(rhatlist)) {
     pp <- p[i]
     rhats <- rhatlist[[i]]
+    if(all(is.na(rhats))) rhats[1] <- 1  # this is a weird hack to eliminate NA bug
     if(!is.null(dim(rhats))) {
       if(!is.null(margin)) {
         domargin <- (max(margin)<=length(dim(rhats)))
@@ -1160,7 +1215,7 @@ traceworstRhat <- function(x,p=NULL,n.eff=FALSE,margin=NULL,parmfrow=NULL,...) {
     } else {
       thenames <- pp
     }
-    tracedens_jags(x,p=thenames,...=...)
+    tracedens_jags(x,p=thenames, exact=T)#,...=...)
   }
 
   # if(!inherits(x,"jagsUI")) stop("Input must be an output object returned from jagsUI::jags().")
@@ -1271,7 +1326,7 @@ rcolors <- function(n) {
 #' `margin=2` will separate the array by column.  If the default (`NULL`) is accepted, the function will split by the smallest dimension,
 #' therefore splitting into the fewest groups.
 #' @return `NULL`
-#' @seealso \link{traceworstRhat}, \link{check_Rhat}
+#' @seealso \link{traceworstRhat}, \link{check_Rhat}, \link{qq_postpred}, \link{ts_postpred}
 #' @param ... additional plotting arguments
 #' @author Matt Tyers
 #' @references Gelman, A., & Rubin, D. B. (1992). Inference from Iterative Simulation
@@ -1409,18 +1464,20 @@ plotRhats <- function(x,
 #' string supplied will be returned.  If the default (`NULL`) is accepted, all parameters will be plotted.
 #' @param minCI Minimum CI width for plotting.  This is intended as a method for excluding far-outlying MCMC
 #' samples when determining the appropriate y-axis limits for plotting.  Defaults to 99%.
+#' @param ylim Y-axis limits for plotting.  If the default (`NULL`) is accepted, limits will be automatically determined.
 #' @param legendnames Names for optional legend.  If the default `NULL` is accepted, no legend will be drawn.
 #' @param legendpos Position for optional legend.  Defaults to `"topleft"`.
+#' @param col Colors for kernel density plots.  Defaults to colors `4` and `2` (blue and red).
 #' @param ... additional plotting arguments
 #' @return `NULL`
-#' @seealso \link{comparecat}
+#' @seealso \link{comparecat}, \link{comparepriors}
 #' @author Matt Tyers
 #' @examples
 #' ## This is the same output object twice, but shows functionality.
 #' comparedens(x1=asdf_jags_out, x2=asdf_jags_out, p=c("a","b","sig"),
 #'             legendnames=c("Model 1", "Model 2"))
 #' @export
-comparedens <- function(x1,x2, p=NULL, minCI=0.99, legendnames=NULL, legendpos="topleft", ...) {
+comparedens <- function(x1,x2, p=NULL, minCI=0.99, ylim=NULL, legendnames=NULL, legendpos="topleft", col=c(4,2), ...) {
   # if(!inherits(x1,"jagsUI") | !inherits(x2,"jagsUI")) {
   #   stop("Inputs must both a output objects returned from jagsUI::jags().")
   # }
@@ -1448,30 +1505,33 @@ comparedens <- function(x1,x2, p=NULL, minCI=0.99, legendnames=NULL, legendpos="
     parmx2 <- xdf2
   }
 
-  allparms <- sort(unique(c(names(parmx1),names(parmx2))))
+  # allparms <- sort(unique(c(names(parmx1),names(parmx2))))
+  allparms <- unique(c(names(parmx1),names(parmx2)))
 
   cilo1 <- apply(parmx1, 2, quantile, p=(1-minCI)/2)
   cilo2 <- apply(parmx2, 2, quantile, p=(1-minCI)/2)
   cihi1 <- apply(parmx1, 2, quantile, p=1-((1-minCI)/2))
   cihi2 <- apply(parmx2, 2, quantile, p=1-((1-minCI)/2))
+  if(is.null(ylim)) ylim <- range(cilo1,cihi1,cilo2,cihi2,na.rm=T)
 
-  plot(NA,xlim=c(0,length(allparms)+1), ylim=range(cilo1,cihi1,cilo2,cihi2,na.rm=T), ylab="",xlab="",xaxt="n",...=...)
+  plot(NA,xlim=c(0,length(allparms)+1), ylim=ylim, ylab="",xlab="",xaxt="n",...=...)
   axis(1,at=1:length(allparms),labels=allparms,las=2)
   abline(v=1:length(allparms),lty=3)
 
+  if(length(col)==1) col <- rep(col, 2)
   for(i in 1:length(allparms)) {
     if(allparms[i] %in% names(parmx1)) {
       xxx <- density(parmx1[,which(names(parmx1)==allparms[i])])
-      polygon(i-xxx$y/max(xxx$y)*.4, xxx$x, col=adjustcolor(2,alpha.f=.5), border=2)
+      polygon(i-xxx$y/max(xxx$y)*.4, xxx$x, col=adjustcolor(col[1],alpha.f=.5), border=col[1])
     }
     if(allparms[i] %in% names(parmx2)) {
       xxx <- density(parmx2[,which(names(parmx2)==allparms[i])])
-      polygon(i+xxx$y/max(xxx$y)*.4, xxx$x, col=adjustcolor(4,alpha.f=.5), border=4)
+      polygon(i+xxx$y/max(xxx$y)*.4, xxx$x, col=adjustcolor(col[2],alpha.f=.5), border=col[2])
     }
   }
 
   if(!is.null(legendnames)) {
-    legend(legendpos,legend=legendnames, fill=adjustcolor(c(2,4), alpha.f=.5), border=c(2,4))
+    legend(legendpos,legend=legendnames, fill=adjustcolor(col, alpha.f=.5), border=col)
   }
 }
 
@@ -1486,17 +1546,18 @@ comparedens <- function(x1,x2, p=NULL, minCI=0.99, legendnames=NULL, legendpos="
 #' @param p Optional vector of parameters to subset.  All parameters with names matching the beginning of the
 #' string supplied will be returned.  If the default (`NULL`) is accepted, all parameters will be plotted.
 #' @param ci Credible intervals widths to plot.  Defaults to 50% and 95%.
-#' @param ylim Y-axis limits for plotting
+#' @param ylim Y-axis limits for plotting.  If the default (`NULL`) is accepted, limits will be automatically determined.
+#' @param col Vector of colors for plotting.  If the default (`NULL`) is accepted, colors will be automatically drawn.
 #' @param ... additional plotting arguments
 #' @return `NULL`
-#' @seealso \link{caterpillar}, \link{comparedens}
+#' @seealso \link{caterpillar}, \link{comparedens}, \link{comparepriors}
 #' @author Matt Tyers
 #' @examples
 #' ## This is the same output object three times, but shows functionality.
 #' comparecat(x=list(asdf_jags_out, asdf_jags_out, asdf_jags_out),
 #'            p=c("a","b","sig"))
 #' @export
-comparecat <- function(x,p=NULL,ci=c(0.5,0.95),ylim=NULL,...) {
+comparecat <- function(x, p=NULL, ci=c(0.5,0.95), ylim=NULL, col=NULL, ...) {
   if(!inherits(x,"list")) stop("Input must be a (single) list of outputs from jagsUI::jags() or data.frames.")
   xdf <- list()
   for(i in 1:length(x)) {
@@ -1514,7 +1575,8 @@ comparecat <- function(x,p=NULL,ci=c(0.5,0.95),ylim=NULL,...) {
   # for(i in 1:length(x)) parmx[[i]] <- cbind(pull_post(xdf[[i]],"sig"), phi=pull_post(xdf[[i]],"phi"))
   for(i in 1:length(x)) parmx[[i]] <- pull_post(xdf[[i]],p=p)
 
-  allparms <- sort(unique(unlist(lapply(parmx,names))))
+  # allparms <- sort(unique(unlist(lapply(parmx,names))))
+  allparms <- unique(unlist(lapply(parmx,names)))
 
   cilo <- sort(1-ci)/2
   cihi <- 1-cilo
@@ -1531,7 +1593,11 @@ comparecat <- function(x,p=NULL,ci=c(0.5,0.95),ylim=NULL,...) {
   axis(1,at=1:length(allparms),labels=allparms,las=2)
   # abline(v=1:length(allparms),lty=3)
 
-  cols <- c(4,2,3,rcolors(100))[1:length(x)]
+  if(is.null(col)) {
+    cols <- c(4,2,3,rcolors(100))[1:length(x)]
+  } else {
+    cols <- rep(col, 100)
+  }
 
   for(i in 1:length(allparms)) {
     for(ii in 1:length(x)) {
@@ -1772,7 +1838,7 @@ plotcor_jags <- function(x, p=NULL, exact=FALSE, mincor=0, maxn=4, maxcex=1, leg
 #' @param ylab Y-axis label.  Defaults to "Density".
 #' @param ... Optional plotting arguments
 #' @return `NULL`
-#' @seealso \link{comparedens}, \link{comparecat}
+#' @seealso \link{comparedens}, \link{comparecat}, \link{comparepriors}
 #' @author Matt Tyers
 #' @examples
 #' ## jagsUI object with a single parameter
@@ -1902,9 +1968,198 @@ plotdens <- function(df, p=NULL, exact=FALSE, add=FALSE,
 # plotdens(list(asdf_jags_out,asdf_jags_out,asdf_jags_out), p="b1",lwd=F)
 
 
+#' Quantile-quantile plot from posterior predictive distribution
+#' @description Produces a quantile-quantile plot, calculated from the quantiles of
+#' a vector of data (most likely a time series), with respect to the matrix of associated posterior
+#' predictive distributions.
+#'
+#' While not an omnibus posterior predictive check, this plot can be useful
+#' for detecting an overparameterized model, or else improper specification
+#' of observation error.  Like a traditional Q-Q plot, a well-specified model
+#' will have points that lie close to the x=y line.  In the case of this
+#' function, an overparametrized model will typically produce a plot with a
+#' much shallower slope, possibly with many associated posterior predictive quantiles close
+#' to 0.5.
+#'
+#' It should be noted that this function will only produce meaningful results
+#' with a vector of data, as opposed to a single value.
+#'
+#' The posterior predictive distribution can be specified in two possible ways:
+#' either a single output object from `jagsUI` with an associated parameter
+#' name, or as a matrix or `data.frame` of posterior samples.
+#' @param ypp Either a matrix or `data.frame` of posterior samples, or an
+#' output object returned from `jagsUI` and a supplied parameter name
+#' @param y The associated data vector
+#' @param p A character name, if a `jagsUI` object is passed to `ypp`
+#' @param add Whether to add the plot to an existing plot.  Defaults to `FALSE`.
+#' @param ... Optional plotting arguments
+#' @return `NULL`
+#' @note This function assumes the existence of a matrix of posterior predictive
+#' samples corresponding to a data vector, the construction of which must be
+#' left to the user.  This can be accomplished within JAGS, or using appropriate
+#' simulation from the posterior samples.
+#' @seealso \link{ts_postpred}, \link{check_Rhat}, \link{check_neff}, \link{traceworstRhat}, \link{plotRhats}
+#' @author Matt Tyers
+#' @examples
+#' # first, a quick look at the example data...
+#' str(SS_data)
+#' str(SS_out$sims.list$ypp)
+#'
+#' # plotting the example posterior predictive distribution with the data
+#' # points overlayed.  Note the overdispersion in the posterior predictive.
+#' caterpillar(SS_out, p="ypp")
+#' points(SS_data$y)
+#'
+#' # using a jagsUI object as ypp input
+#' qq_postpred(ypp=SS_out, p="ypp", y=SS_data$y)
+#'
+#' # using a matrix as ypp input
+#' qq_postpred(ypp=SS_out$sims.list$ypp, y=SS_data$y)
+#' @export
+qq_postpred <- function(ypp, y, p=NULL, add=FALSE, ...) { # ypp is a matrix, y is a vector
+  if(!inherits(ypp, c("matrix","data.frame")) & !inherits(ypp, "jagsUI")) stop("Argument ypp must be a posterior matrix or jagsUI object.")
+  if(inherits(ypp, "jagsUI") & is.null(p)) stop("Parameter name must be supplied to p= argument if jagsUI object is used in argument ypp")
+  if(inherits(ypp, "jagsUI") & !is.null(p)) {
+    ypp <- ypp$sims.list[names(ypp$sims.list)==p][[1]]   # rework this with jags_df?
+  }
+  if(length(y)<=1) stop("Data (argument y) must be a vector for meaningful diagnostics")
+  if(ncol(ypp)!=length(y)) stop("Posterior matrix ypp must have the same number of columns as length of data matrix y")
+  ymat <- matrix(y, nrow=nrow(ypp), ncol=ncol(ypp), byrow=T)
+  qpp <- sort(colMeans(ymat>=ypp))
+  qtheo <- (1:length(qpp))/length(qpp)
+  if(!add) {
+    plot(qtheo, qpp, xlim=0:1, ylim=0:1, xlab="Theoretical quantile", ylab="Posterior Predictive quantile", ...=...)
+    abline(0,1, lty=2)
+  } else {
+    points(qtheo, qpp, ...=...)
+  }
+}
 
 
+#' Time series plot of centered posterior predictive distribution
+#' @description Produces a plot of centered posterior predictive distributions
+#' associated with a vector of data (most likely a time series),
+#' defined as the difference between posterior predictive and posterior predictive
+#' median.
+#'
+#' Also overlays the posterior predictive residuals, defined as the differences
+#' between data values and their respective posterior predictive medians.
+#'
+#' While not an omnibus posterior predictive check, this plot can be useful
+#' for detecting an overparameterized model, or else improper specification
+#' of observation error.
+#'
+#' It should be noted that this function will only produce meaningful results
+#' with a vector of data, as opposed to a single value.
+#'
+#' The posterior predictive distribution can be specified in two possible ways:
+#' either a single output object from `jagsUI` with an associated parameter
+#' name, or as a matrix or `data.frame` of posterior samples.
+#' @param ypp Either a matrix or `data.frame` of posterior samples, or an
+#' output object returned from `jagsUI` and a supplied parameter name
+#' @param y The associated data vector
+#' @param p A character name, if a `jagsUI` object is passed to `ypp`
+#' @param x The time measurements associated with time series `y`.  If the default
+#' `NULL` is accepted, equally-spaced integer values will be used.
+#' @param lines Whether to add a line linking data time series points.  Defaults to `FALSE`.
+#' @param ... Additional arguments to \link{envelope}
+#' @return `NULL`
+#' @note This function assumes the existence of a matrix of posterior predictive
+#' samples corresponding to a data vector, the construction of which must be
+#' left to the user.  This can be accomplished within JAGS, or using appropriate
+#' simulation from the posterior samples.
+#' @seealso \link{qq_postpred}, \link{check_Rhat}, \link{check_neff}, \link{traceworstRhat}, \link{plotRhats}
+#' @author Matt Tyers
+#' @examples
+#' # first, a quick look at the example data...
+#' str(SS_data)
+#' str(SS_out$sims.list$ypp)
+#'
+#' # plotting the example posterior predictive distribution with the data
+#' # points overlayed.  Note the overdispersion in the posterior predictive.
+#' caterpillar(SS_out, p="ypp")
+#' points(SS_data$y)
+#'
+#' # using a jagsUI object as ypp input
+#' ts_postpred(ypp=SS_out, p="ypp", y=SS_data$y)
+#'
+#' # using a matrix as ypp input
+#' ts_postpred(ypp=SS_out$sims.list$ypp, y=SS_data$y)
+#' @export
+ts_postpred <- function(ypp, y, p=NULL, x=NULL, lines=FALSE, ...) { #p=NULL  ?? style it after qq_postpred
+  if(!inherits(ypp, c("matrix","data.frame")) & !inherits(ypp, "jagsUI")) stop("Argument ypp must be a posterior matrix or jagsUI object.")
+  if(inherits(ypp, "jagsUI") & is.null(p)) stop("Parameter name must be supplied to p= argument if jagsUI object is used in argument ypp")
+  if(inherits(ypp, "jagsUI") & !is.null(p)) {
+    ypp <- ypp$sims.list[names(ypp$sims.list)==p][[1]]   # rework this with jags_df?
+  }
+  if(length(y)<=1) stop("Data (argument y) must be a vector for meaningful diagnostics")
+  if(ncol(ypp)!=length(y)) stop("Posterior matrix ypp must have the same number of columns as length of data matrix y")
+  meds <- apply(ypp, 2, median, na.rm=T)
+  ypp_resid <- ypp - matrix(meds, byrow=TRUE, nrow=nrow(ypp), ncol=ncol(ypp))
+  envelope(ypp_resid, x=x, ylab="Diff from post pred median", ...=...)
+  if(is.null(x)) x <- seq_along(y)
+  points(x=x, y=y-meds)
+  if(lines) lines(x=x, y=y-meds)
+}
 
 
+#' Compare Priors
+#' @description Side-by-side kernel density plots for all parameters with parameter
+#' names ending in `"_prior"`, and corresponding parameters without.  It should
+#' be noted that these parameters must be specified in JAGS as well as the
+#' corresponding parameters, and this is left to the user.
+#'
+#' This function is a wrapper of \link{comparedens}.
+#'
+#' Kernel densities are plotted vertically, either left- or right-facing.  Parameters with the same name are
+#'  plotted facing one another.
+#' @param x Output object returned from jagsUI::jags()
+#' @param parmfrow Optional call to `par(mfrow)` for the number of rows & columns of plot window.  Returns the graphics device to previous state afterward.
+#' @param ... additional arguments to \link{comparedens}
+#' @return `NULL`
+#' @seealso \link{comparecat}, \link{comparedens}, \link{plotdens}
+#' @author Matt Tyers
+#' @examples
+#' ## a look at what parameters exist in the input object
+#' nbyname(asdf_prior_jags_out)
+#'
+#' ## then, showing the function usage
+#' comparepriors(asdf_prior_jags_out, parmfrow=c(2, 3))
+#' @export
+comparepriors <- function(x, parmfrow=NULL,...) {
+  if(!inherits(x,"jagsUI")) stop("Input must be an output object returned from jagsUI::jags().")
 
+  if(!is.null(parmfrow)) {
+    parmfrow1 <- par("mfrow")
+    par(mfrow=parmfrow)
+    on.exit(par(mfrow=parmfrow1))
+  }
 
+  # get names
+  thenames <- names(x$sims.list)
+
+  # find names ending in "_prior"
+  thepriors <- NULL
+  for(i in 1:length(thenames)) {
+    thesplit <- strsplit(thenames[i], split="_")[[1]]
+    if(thesplit[length(thesplit)] == "prior") thepriors <- c(thepriors, i)
+  }
+  if(is.null(thepriors)) warning('No parameter names ending in "_prior"')
+
+  for(i_prior in thepriors) {
+    # find a posterior with matching name
+    thepriorname <- thenames[i_prior]
+    thepostname <- NULL
+    for(i_post in 1:length(thenames)) {
+      if(thenames[i_post] == substr(thepriorname, 1, nchar(thepriorname)-6)) {
+        thepostname <- thenames[i_post]
+      }
+    }
+    if(!is.null(thepostname)) {
+      priordf <- as.data.frame(x$sims.list[thepriorname])
+      postdf <- as.data.frame(x$sims.list[thepostname])
+      names(priordf) <- names(postdf)
+      comparedens(x1=priordf, x2=postdf, main=thepostname, legendnames=c("prior","post"),...=...)
+    }
+  }
+}
