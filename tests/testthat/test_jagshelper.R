@@ -147,6 +147,12 @@ test_that("envelope", {
   expect_error(envelope(SS_out, p=c("trend","rate")), "Need single parameter name in p= argument")
   expect_error(envelope(SS_out), "Need single parameter name in p= argument")
   expect_error(envelope(SS_out, p="steve"), "No parameters with matching names")
+
+  expect_silent(envelope(trend, x=SS_data$x, transform="exp"))
+  expect_silent(envelope(trend, x=SS_data$x, transform="exp", log="y"))
+  expect_silent(envelope(SS_out, p="trend", transform="exp", log="y"))
+  expect_silent(envelope(SS_out, p="trend", transform="expit", log="y", ylab="transform it"))
+  expect_error(envelope(SS_out, p="trend", transform="somethingsalwayswrong", log="y"))
 })
 
 test_that("overlayenvelope", {
@@ -157,6 +163,10 @@ test_that("overlayenvelope", {
   expect_silent(overlayenvelope(df=SS_out, p=c("trend","cycle_s"), column=2))
   expect_silent(overlayenvelope(df=SS_out, p=c("trend","rate"), legendnames=c("bob","larry")))
   expect_error(overlayenvelope(df=SS_out))
+
+  expect_silent(overlayenvelope(df=SS_out, p="cycle_s", transform="exp"))
+  expect_silent(overlayenvelope(df=SS_out, p="cycle_s", transform="exp", log="y"))
+  expect_error(overlayenvelope(df=SS_out, p="cycle_s", transform="bob"))
 })
 
 test_that("caterpillar", {
@@ -174,6 +184,11 @@ test_that("caterpillar", {
   expect_error(caterpillar(SS_out, p=c("trend","rate")), "Need single parameter name in p= argument")
   expect_error(caterpillar(SS_out), "Need single parameter name in p= argument")
   expect_error(caterpillar(SS_out, p="steve"), "No parameters with matching names")
+
+  expect_silent(caterpillar(trend, x=SS_data$x, transform="exp", log="y"))
+  expect_silent(caterpillar(SS_out, p="trend", transform="exp"))
+  expect_silent(caterpillar(SS_out, p="trend", transform="expit"))
+  expect_error(caterpillar(SS_out, p="trend", transform="somethingelse"))
 })
 
 test_that("traceworstRhat", {
@@ -215,6 +230,9 @@ test_that("comparedens", {
 test_that("comparecat", {
   expect_silent(comparecat(x=list(asdf_jags_out, asdf_jags_out, asdf_jags_out),p=c("a","b","sig")))
   expect_silent(comparecat(x=list(asdf_jags_out, asdf_jags_out, asdf_jags_out),p=c("a","b","sig"), col=1:3))
+  expect_silent(comparecat(x=list(asdf_jags_out, asdf_jags_out, asdf_jags_out),p=c("a","b","sig"), col=1:3, transform="exp"))
+  expect_silent(comparecat(x=list(asdf_jags_out, asdf_jags_out, asdf_jags_out),p=c("a","b","sig"), col=1:3, transform="expit"))
+  expect_error(comparecat(x=list(asdf_jags_out, asdf_jags_out, asdf_jags_out),p=c("a","b","sig"), col=1:3, transform="badbadbad"))
   expect_error(comparecat(x=list(1:10, asdf_jags_out, asdf_jags_out),p=c("a","b","sig")))
   expect_error(comparecat(x=asdf_jags_out))
 })
@@ -272,6 +290,10 @@ test_that("ts_postpred", {
   expect_error(ts_postpred(ypp=SS_out, p="ypp", y=SS_data$y[1]))
   expect_error(ts_postpred(ypp=SS_out, p="ypp", y=SS_data$y[1:2]), "Posterior matrix ypp must have the same number of columns as length of data matrix y")
   expect_error(ts_postpred(ypp=SS_out, y=SS_data$y), "Parameter name must be supplied to p= argument if jagsUI object is used in argument ypp")
+
+  expect_silent(ts_postpred(ypp=SS_out, p="ypp", y=SS_data$y, transform="exp"))
+  expect_silent(ts_postpred(ypp=SS_out, p="ypp", y=SS_data$y, transform="expit"))
+  expect_error(ts_postpred(ypp=SS_out, p="ypp", y=SS_data$y, transform="larryboy"))
 })
 
 test_that("comparepriors", {
