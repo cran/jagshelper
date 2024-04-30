@@ -1,7 +1,7 @@
-9bcf8808df1745e0e89eb82ad1c9b3a2 *DESCRIPTION
+969a94a97b4321d5b8d9eee648ecdf7d *DESCRIPTION
 3724395a68ffc3f58005254b1a7e2cb0 *NAMESPACE
-2530970bb22ec30a3352ae6979ddc031 *NEWS.md
-3667b2326b78acc3768894f11d85b3a9 *R/jagshelper1.R
+ae54cd2e125b4e9a7d9cbf1f878a12bc *NEWS.md
+1be056a53f73b091be3e921c0e90da2a *R/jagshelper1.R
 05daad8de377bf9fd0bb7936aeb00caf *README.md
 97e044261336492d377789a6542ff747 *build/vignette.rds
 943b1bdfc3353570da210de98aefcaa6 *data/SS_data.rda
@@ -10,7 +10,7 @@ f1ce094ab10e76f5947990dd66c2d24c *data/asdf_jags_out.rda
 ddb64c3dbe86e30a3b3437c3dcd0f01e *data/asdf_prior_jags_out.rda
 61a9e853e3fae6369aa8de1956a06925 *inst/doc/jagshelper-vignette.R
 daccd519b779cf8160b0ff27629805a2 *inst/doc/jagshelper-vignette.Rmd
-854b185f607788dde8255df51841b732 *inst/doc/jagshelper-vignette.html
+217b88f68a74eafe9acbe70128ad7bc9 *inst/doc/jagshelper-vignette.html
 27bf256d88723af8dbda1ce2e1a37106 *man/SS_data.Rd
 d5bfe2dd970b58b37e4ce80d59127c78 *man/SS_out.Rd
 7176c9bbe8a4980e736e9d4e752e165d *man/asdf_jags_out.Rd
@@ -29,7 +29,7 @@ b3b17554a13cc27ca7f98b023c33c85d *man/envelope.Rd
 42b9481cf12075c772005ce3d62a705c *man/expit.Rd
 2b705f9949f89309c7080b2057c8360e *man/jags_df.Rd
 5c2b1b9f356aaf7481232455fbace5f8 *man/jags_plist.Rd
-5722bdf318596417a538ae304b0d5d0c *man/jagshelper-package.Rd
+fe87c34eaa1c773c09582103c6a61ee2 *man/jagshelper-package.Rd
 7140d3123042d9a4cd3133d8b4f0967d *man/logit.Rd
 b90e93c596f2fe29c5fb674331cc5901 *man/nbyname.Rd
 4fa97b0ecaf69f94f04939687ea211cc *man/nparam.Rd
@@ -49,5 +49,5 @@ ac33ba92cb20e0f0f16bde4bdcc64f85 *man/tracedens_jags.Rd
 2f69ace5360fd0fb58e26fd54ad6994a *man/traceworstRhat.Rd
 513e8b75ffad61f0bafb2c420c5607a3 *man/ts_postpred.Rd
 ee088a2ef83ac17ffdbd34f9154440ca *tests/testthat.R
-8dcd98bf719971828a5a4301c949f253 *tests/testthat/test_jagshelper.R
+b1529399bb418a1b6fdb3df382594c44 *tests/testthat/test_jagshelper.R
 daccd519b779cf8160b0ff27629805a2 *vignettes/jagshelper-vignette.Rmd
