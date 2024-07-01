@@ -787,28 +787,51 @@ envelope <- function(df,
   }
 
   else {
-    whichnotna <- unname(apply(loq,2,function(x) !all(is.na(x))))
-    firsts <- lasts <- NA
-    ilist <- whichnotna[1]
-    if(whichnotna[1]) firsts[1] <- 1
-    for(ii in 2:(length(whichnotna)-1)) {
-      if(whichnotna[ii] & !whichnotna[ii-1]) {
-        ilist <- ilist+1
-        firsts[ilist] <- ii
-      }
-      if(whichnotna[ii] & !whichnotna[ii+1]) {
-        lasts[ilist] <- ii
-      }
-    }
-    if(whichnotna[length(whichnotna)]) lasts[ilist] <- length(whichnotna)
+    # whichnotna <- unname(apply(loq,2,function(x) !all(is.na(x))))
+    # firsts <- lasts <- NA
+    # ilist <- whichnotna[1]
+    # if(whichnotna[1]) firsts[1] <- 1
+    # for(ii in 2:(length(whichnotna)-1)) {
+    #   if(whichnotna[ii] & !whichnotna[ii-1]) {
+    #     ilist <- ilist+1
+    #     firsts[ilist] <- ii
+    #   }
+    #   if(whichnotna[ii] & !whichnotna[ii+1]) {
+    #     lasts[ilist] <- ii
+    #   }
+    # }
+    # if(whichnotna[length(whichnotna)]) lasts[ilist] <- length(whichnotna)
+    #
+    # for(ii in 1:length(firsts)) {
+    #   for(i in 1:length(ci)) {
+    #     polygon(c(x[firsts[ii]:lasts[ii]],rev(x[firsts[ii]:lasts[ii]])),
+    #             c(loq[i,firsts[ii]:lasts[ii]],rev(hiq[i,firsts[ii]:lasts[ii]])),
+    #             col=adjustcolor(col,alpha.f=dark), border=NA)
+    #   }
+    # }
 
-    for(ii in 1:length(firsts)) {
+    whichnotna <- which(unname(apply(loq,2,function(x) !all(is.na(x)))))
+    # firsts <- lasts <- NA
+    # ilist <- whichnotna[1]
+    # if(whichnotna[1]) firsts[1] <- 1
+    # for(ii in 2:(length(whichnotna)-1)) {
+    #   if(whichnotna[ii] & !whichnotna[ii-1]) {
+    #     ilist <- ilist+1
+    #     firsts[ilist] <- ii
+    #   }
+    #   if(whichnotna[ii] & !whichnotna[ii+1]) {
+    #     lasts[ilist] <- ii
+    #   }
+    # }
+    # if(whichnotna[length(whichnotna)]) lasts[ilist] <- length(whichnotna)
+
+    # for(ii in 1:length(firsts)) {
       for(i in 1:length(ci)) {
-        polygon(c(x[firsts[ii]:lasts[ii]],rev(x[firsts[ii]:lasts[ii]])),
-                c(loq[i,firsts[ii]:lasts[ii]],rev(hiq[i,firsts[ii]:lasts[ii]])),
+        polygon(c(x[whichnotna],rev(x[whichnotna])),
+                c(loq[i,whichnotna],rev(hiq[i,whichnotna])),
                 col=adjustcolor(col,alpha.f=dark), border=NA)
       }
-    }
+    # }
   }
 }
 
@@ -1629,12 +1652,16 @@ comparecat <- function(x, p=NULL, ci=c(0.5,0.95), ylim=NULL, col=NULL, xlab="", 
   if(!inherits(x,"list")) stop("Input must be a (single) list of outputs from jagsUI::jags() or data.frames.")
   xdf <- list()
   for(i in 1:length(x)) {
-    if(!inherits(x[[i]], "jagsUI") & !inherits(x[[i]], "data.frame")) {
+    if(!inherits(x[[i]], "jagsUI") & !inherits(x[[i]], "data.frame") & !inherits(x[[i]], "matrix")) {
       stop("Each input element must be an output from jagsUI::jags() or data.frame.")
     }
     if(inherits(x[[i]],"jagsUI")) {
       xdf[[i]] <- jags_df(x[[i]])
-    } else {
+    }
+    if(inherits(x[[i]],"matrix")) {
+      xdf[[i]] <- as.data.frame(x[[i]])
+    }
+    if(inherits(x[[i]],"data.frame")) {
       xdf[[i]] <- x[[i]]
     }
   }
@@ -1659,8 +1686,9 @@ comparecat <- function(x, p=NULL, ci=c(0.5,0.95), ylim=NULL, col=NULL, xlab="", 
     }
   }
 
-  # allparms <- sort(unique(unlist(lapply(parmx,names))))
-  allparms <- unique(unlist(lapply(parmx,names)))
+  # # allparms <- sort(unique(unlist(lapply(parmx,names))))
+  # allparms <- unique(unlist(lapply(parmx,names)))
+  allparms <- unique(unlist(lapply(parmx, colnames)))
 
   cilo <- sort(1-ci)/2
   cihi <- 1-cilo
@@ -1800,7 +1828,7 @@ cor_jags <- function(x, p=NULL, exact=FALSE) {
 #'
 #' Values of correlation are overlayed for all parameters with few nodes, with
 #' character size scaled according to the absolute correlation.
-#' @param x Output object returned from `jagsUI`
+#' @param x Output object returned from `jagsUI`, or a data.frame with MCMC output
 #' @param p Optional string to begin posterior names.  If `NULL` is used, all parameters will be used
 #' @param exact Whether name must be an exact match (`TRUE`) or with initial sub-string matching only supplied characters (`FALSE`).
 #' Defaults to `FALSE.`
@@ -1810,7 +1838,7 @@ cor_jags <- function(x, p=NULL, exact=FALSE) {
 #' @param legend Whether to produce a plot legend.  Defaults to `TRUE`.
 #' @param ... Optional plotting arguments
 #' @return `NULL`
-#' @seealso \link{plotcor_jags}
+#' @seealso \link{cor_jags}
 #' @author Matt Tyers
 #' @examples
 #' plotcor_jags(asdf_jags_out, maxcex=0.7)
@@ -1818,9 +1846,17 @@ cor_jags <- function(x, p=NULL, exact=FALSE) {
 #' plotcor_jags(SS_out, p=c("trend","rate","sig"))
 #' @export
 plotcor_jags <- function(x, p=NULL, exact=FALSE, mincor=0, maxn=4, maxcex=1, legend=TRUE, ...) {
-  if(!inherits(x,"jagsUI")) stop("Input must be an output object returned from jagsUI::jags().")
-  dfcor <- cor_jags(x=x, p=p, exact=exact)
-  if(all(dim(dfcor)==0)) stop("No parameters with matching names")
+  if(!inherits(x, c("data.frame","matrix","jagsUI"))) {
+    stop("Input must be an output object returned from jagsUI::jags(), or data.frame with MCMC output.")
+  }
+
+  if(inherits(x,"jagsUI")) {
+    dfcor <- cor_jags(x=x, p=p, exact=exact)
+    if(all(dim(dfcor)==0)) stop("No parameters with matching names")
+  }
+  if(inherits(x, c("data.frame","matrix"))) {
+    dfcor <- cor(x=as.data.frame(x))
+  }
 
   dfnames <- dimnames(dfcor)[[1]] #names(df)
   dfwhich <- sapply(strsplit(dfnames,split="[",fixed=T),FUN="[",1)
@@ -1855,15 +1891,35 @@ plotcor_jags <- function(x, p=NULL, exact=FALSE, mincor=0, maxn=4, maxcex=1, leg
   axis(side=1, at=1:length(dfwhichunique)-.5, labels=dfwhichunique, las=2)
   axis(side=2, at=1:length(dfwhichunique)-.5, labels=dfwhichunique, las=2)
 
+  # rect(xleft=xmat1, xright=xmat, ybottom=ymat1, ytop=ymat, border=cols, col=cols)
+  # for(i in 1:nrow(xmat)) {
+  #   for(j in 1:i) {
+  #     if((dfhowmany[i]<=maxn) & (dfhowmany[j]<=maxn) & (abs(dfcor[i,j])>=mincor)) {
+  #       text(x=dfdim1[i]+0.5/dfhowmany[i], y=dfdim1[j]+0.5/dfhowmany[j], labels=round(dfcor[i,j],2), cex=maxcex*abs(dfcor[i,j])^.3)
+  #       text(x=dfdim1[j]+0.5/dfhowmany[j], y=dfdim1[i]+0.5/dfhowmany[i], labels=round(dfcor[i,j],2), cex=maxcex*abs(dfcor[i,j])^.3)
+  #     }
+  #   }
+  # }
+
   rect(xleft=xmat1, xright=xmat, ybottom=ymat1, ytop=ymat, border=cols, col=cols)
+  dfcor4cex <- dfcor
+  dfcor4cex[is.na(dfcor4cex)] <- 0.5
   for(i in 1:nrow(xmat)) {
     for(j in 1:i) {
-      if((dfhowmany[i]<=maxn) & (dfhowmany[j]<=maxn) & (abs(dfcor[i,j])>=mincor)) {
-        text(x=dfdim1[i]+0.5/dfhowmany[i], y=dfdim1[j]+0.5/dfhowmany[j], labels=round(dfcor[i,j],2), cex=maxcex*abs(dfcor[i,j])^.3)
-        text(x=dfdim1[j]+0.5/dfhowmany[j], y=dfdim1[i]+0.5/dfhowmany[i], labels=round(dfcor[i,j],2), cex=maxcex*abs(dfcor[i,j])^.3)
+      # if((dfhowmany[i]<=maxn) & (dfhowmany[j]<=maxn) & (abs(dfcor[i,j])>=mincor)) {
+      if((dfhowmany[i]<=maxn) & (dfhowmany[j]<=maxn) & (abs(dfcor4cex[i,j])>=mincor)) {
+        # text(x=dfdim1[i]+0.5/dfhowmany[i], y=dfdim1[j]+0.5/dfhowmany[j], labels=round(dfcor[i,j],2), cex=maxcex*abs(dfcor[i,j])^.3)
+        # text(x=dfdim1[j]+0.5/dfhowmany[j], y=dfdim1[i]+0.5/dfhowmany[i], labels=round(dfcor[i,j],2), cex=maxcex*abs(dfcor[i,j])^.3)
+        text(x=dfdim1[i]+0.5/dfhowmany[i], y=dfdim1[j]+0.5/dfhowmany[j], labels=round(dfcor[i,j],2), cex=maxcex*abs(dfcor4cex[i,j])^.3)
+        text(x=dfdim1[j]+0.5/dfhowmany[j], y=dfdim1[i]+0.5/dfhowmany[i], labels=round(dfcor[i,j],2), cex=maxcex*abs(dfcor4cex[i,j])^.3)
+        if(is.na(dfcor[i,j])) {
+          text(x=dfdim1[i]+0.5/dfhowmany[i], y=dfdim1[j]+0.5/dfhowmany[j], labels="NA", cex=maxcex*abs(dfcor4cex[i,j])^.3)
+          text(x=dfdim1[j]+0.5/dfhowmany[j], y=dfdim1[i]+0.5/dfhowmany[i], labels="NA", cex=maxcex*abs(dfcor4cex[i,j])^.3)
+        }
       }
     }
   }
+
   # abline(v=0:length(dfwhichunique))
   segments(x0=rep(0, length(dfwhichunique)+1),
            x1=rep(length(dfwhichunique), length(dfwhichunique)+1),
@@ -2107,8 +2163,21 @@ qq_postpred <- function(ypp, y, p=NULL, add=FALSE, ...) { # ypp is a matrix, y i
     ypp <- ypp$sims.list[names(ypp$sims.list)==p][[1]]   # rework this with jags_df?
   }
   if(length(y)<=1) stop("Data (argument y) must be a vector for meaningful diagnostics")
-  if(ncol(ypp)!=length(y)) stop("Posterior matrix ypp must have the same number of columns as length of data matrix y")
-  ymat <- matrix(y, nrow=nrow(ypp), ncol=ncol(ypp), byrow=T)
+  if(ncol(ypp) > length(y)) {
+    stop("Posterior matrix ypp has more columns than length of data matrix y")
+  }
+  if(ncol(ypp) < length(y)) {
+    warning("Posterior matrix ypp has fewer columns than length of data matrix y")
+    # define ymat somehow differently
+    # ymat <- matrix(NA, nrow=nrow(ypp), ncol=ncol(ypp))
+    ymat <- matrix(y, nrow=nrow(ypp), ncol=length(y), byrow=T)   # actually this should work for both
+    ypp1 <- matrix(NA, nrow=nrow(ypp), ncol=length(y))
+    ypp1[,1:ncol(ypp)] <- ypp
+    ypp <- ypp1
+  }
+  if(ncol(ypp) == length(y)){
+    ymat <- matrix(y, nrow=nrow(ypp), ncol=ncol(ypp), byrow=T)
+  }
   qpp <- sort(colMeans(ymat>=ypp))
   qtheo <- (1:length(qpp))/length(qpp)
   if(!add) {
@@ -2221,6 +2290,10 @@ ts_postpred <- function(ypp, y, p=NULL, x=NULL, lines=FALSE,
   points(x=x, y=yplot)
   if(lines) lines(x=x, y=yplot)
 }
+
+
+
+
 
 
 #' Compare Priors

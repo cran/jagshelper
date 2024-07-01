@@ -258,6 +258,8 @@ test_that("cor_jags", {
 
 test_that("plotcor_jags", {
   expect_silent(plotcor_jags(asdf_jags_out))
+  expect_silent(plotcor_jags(jags_df(asdf_jags_out)))
+  expect_silent(asdf_jags_out$sims.list$a)
   expect_silent(plotcor_jags(asdf_jags_out, p=c("a","b")))
   expect_silent(plotcor_jags(asdf_jags_out, legend=F, mincor=0.1, maxn=1))
 })
@@ -279,7 +281,9 @@ test_that("qq_postpred", {
   expect_silent(qq_postpred(ypp=jags_df(x=SS_out, p="ypp"), y=SS_data$y))
   expect_silent(qq_postpred(ypp=SS_out, p="ypp", y=SS_data$y, add=T, pch="+", col=4))
   expect_error(qq_postpred(ypp=SS_out, p="ypp", y=SS_data$y[1]))
-  expect_error(qq_postpred(ypp=SS_out, p="ypp", y=SS_data$y[1:2]), "Posterior matrix ypp must have the same number of columns as length of data matrix y")
+  expect_error(qq_postpred(ypp=SS_out, p="ypp", y=SS_data$y[1:2]), "Posterior matrix ypp has more columns than length of data matrix y")
+  expect_warning(qq_postpred(ypp=SS_out$sims.list$ypp[,1:2], y=SS_data$y), "Posterior matrix ypp has fewer columns than length of data matrix y")
+  expect_silent(qq_postpred(ypp=SS_out$sims.list$ypp[,1:2], y=SS_data$y[1:2]))
   expect_error(qq_postpred(ypp=SS_out, y=SS_data$y), "Parameter name must be supplied to p= argument if jagsUI object is used in argument ypp")
 })
 
