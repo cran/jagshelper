@@ -78,6 +78,31 @@ overlayenvelope(df=SS_out, p="cycle_s")
 ## usage with a single jagsUI output object and multiple parameters
 overlayenvelope(df=SS_out, p=c("trend","rate"))
 
+## -----------------------------------------------------------------------------
+## Usage with single vectors (or data.frames or 2d matrices) 
+xx <- SS_out$sims.list$trend[,41]
+yy <- SS_out$sims.list$cycle[,41]
+
+## Showing possible geometries
+par(mfrow = c(2, 2))
+plot(xx, yy, col=adjustcolor(1, alpha.f=.1), pch=16, main="Cross Geometry")
+crossplot(xx, yy, add=TRUE, col=1)
+plot(xx, yy, col=adjustcolor(1, alpha.f=.1), pch=16, main="G Geometry")
+crossplot(xx, yy, add=TRUE, col=1,
+          drawcross=FALSE, drawx=TRUE)
+plot(xx, yy, col=adjustcolor(1, alpha.f=.1), pch=16, main="Blob Geometry")
+crossplot(xx, yy, add=TRUE, col=1,
+          drawcross=FALSE, drawblob=TRUE)
+plot(xx, yy, col=adjustcolor(1, alpha.f=.1), pch=16, main="Blob Outlines")
+crossplot(xx, yy, add=TRUE, col=1,
+          drawcross=FALSE, drawblob=TRUE, outline=TRUE)
+
+## Usage with jagsUI object and parameter names, plus addl functionality
+par(mfrow = c(1, 1))
+crossplot(SS_out, p=c("trend","cycle"),
+          labels=SS_data$x, labelpos=1, link=TRUE, drawblob=TRUE,
+          col="random")
+
 ## ----eval=FALSE---------------------------------------------------------------
 #  ...
 #  sig ~ dunif(0, 10)   # this is the parameter that is used elsewhere in the model

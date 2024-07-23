@@ -134,6 +134,13 @@ plotRhats(SS_out)  # plotting Rhat values
     ts_postpred(ypp=SS_out, p="ypp", y=SS_data$y)
     par(mfrow=old_parmfrow)        # restoring previous graphics state
     ```
+    
+-   The function `plot_postpred()` is a wrapper that produces a sequence of 
+plots: first, an `envelope()` plot of the posterior predictive distribution overlayed
+with raw data values, then a call to `ts_postpred()` giving a time series of the
+posterior predictive residual distribution overlayed with the data residuals, then
+a plot of the residual standard deviation calculated over a moving window.  By 
+default, these three plots are given with respect to the data sequence, then with respect to the data supplied for x, then with respect to fitted values.
 
 -   The function `pairstrace_jags()` gives methods for plotting
     two-dimensional trace plots, scatter plots, or contour plots, in
@@ -268,6 +275,44 @@ overlayenvelope(df=SS_out, p="cycle_s")
 
 ## usage with a single jagsUI output object and multiple parameters
 overlayenvelope(df=SS_out, p=c("trend","rate"))
+```
+
+Function `crossplot()` plots corresponding pairs of parameter densities on the X-
+and Y-axes.  Three plotting methods are provided, that may be overlayed if desired:
+
+- If drawcross == TRUE, caterpillar-like plots will be produced, with quantile intervals in the x- and y- directions.
+
+- If drawx == TRUE, caterpillar-like plots will be produced, but rotated along the standardized principal component axes. This may be useful to draw if correlation is present.
+
+- If drawblob == TRUE, smoothed polygons will be produced, each containing approximately ⁠ci=⁠ x100% of the associated MCMC samples.
+
+This function may be used with vectors or matrices of MCMC samples, or with a `jagsUI`
+object and a vector of parameter names.
+
+```{r}
+## Usage with single vectors (or data.frames or 2d matrices) 
+xx <- SS_out$sims.list$trend[,41]
+yy <- SS_out$sims.list$cycle[,41]
+
+## Showing possible geometries
+par(mfrow = c(2, 2))
+plot(xx, yy, col=adjustcolor(1, alpha.f=.1), pch=16, main="Cross Geometry")
+crossplot(xx, yy, add=TRUE, col=1)
+plot(xx, yy, col=adjustcolor(1, alpha.f=.1), pch=16, main="G Geometry")
+crossplot(xx, yy, add=TRUE, col=1,
+          drawcross=FALSE, drawx=TRUE)
+plot(xx, yy, col=adjustcolor(1, alpha.f=.1), pch=16, main="Blob Geometry")
+crossplot(xx, yy, add=TRUE, col=1,
+          drawcross=FALSE, drawblob=TRUE)
+plot(xx, yy, col=adjustcolor(1, alpha.f=.1), pch=16, main="Blob Outlines")
+crossplot(xx, yy, add=TRUE, col=1,
+          drawcross=FALSE, drawblob=TRUE, outline=TRUE)
+
+## Usage with jagsUI object and parameter names, plus addl functionality
+par(mfrow = c(1, 1))
+crossplot(SS_out, p=c("trend","cycle"),
+          labels=SS_data$x, labelpos=1, link=TRUE, drawblob=TRUE,
+          col="random")
 ```
 
 ### Comparison between priors and posteriors
