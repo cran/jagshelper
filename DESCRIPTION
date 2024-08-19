@@ -1,8 +1,8 @@
 Package: jagshelper
 Type: Package
 Title: Extracting and Visualizing Output from 'jagsUI'
-Version: 0.3.1
-Date: 2024-07-30
+Version: 0.3.2
+Date: 2024-08-19
 Author: Matt Tyers [aut, cre]
 Authors@R: person("Matt", "Tyers", email = "matttyersstat@gmail.com",
     role = c("aut", "cre"))
@@ -26,6 +26,6 @@ URL: https://github.com/mbtyers/jagshelper
 BugReports: https://github.com/mbtyers/jagshelper/issues
 VignetteBuilder: knitr
 NeedsCompilation: no
-Packaged: 2024-07-30 17:01:47 UTC; mbtyers
+Packaged: 2024-08-19 20:33:29 UTC; mbtyers
 Repository: CRAN
-Date/Publication: 2024-07-30 17:20:02 UTC
+Date/Publication: 2024-08-19 22:30:02 UTC
