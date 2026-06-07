@@ -49,7 +49,7 @@ str(out_df)
 ## ----fig.width=5,fig.height=8-------------------------------------------------
 old_parmfrow <- par("mfrow")  # storing old graphics state
 par(mfrow=c(3,1))
-caterpillar(asdf_jags_out, "a")
+caterpillar(asdf_jags_out, "a", horizontal=TRUE)
 envelope(SS_out, "trend", x=SS_data$x)
 plotdens(asdf_jags_out, "a")
 par(mfrow=old_parmfrow)  # resetting graphics state
@@ -104,10 +104,10 @@ crossplot(SS_out, p=c("trend","cycle"),
           col="random")
 
 ## ----eval=FALSE---------------------------------------------------------------
-#  ...
-#  sig ~ dunif(0, 10)   # this is the parameter that is used elsewhere in the model
-#  sig_prior ~ dunif(0, 10)  # this is only used to give samples of the prior
-#  ...
+# ...
+# sig ~ dunif(0, 10)   # this is the parameter that is used elsewhere in the model
+# sig_prior ~ dunif(0, 10)  # this is only used to give samples of the prior
+# ...
 
 ## -----------------------------------------------------------------------------
 comparepriors(asdf_prior_jags_out, parmfrow=c(2,3))
