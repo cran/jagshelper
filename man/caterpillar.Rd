@@ -8,7 +8,7 @@ caterpillar(
   df,
   p = NULL,
   x = NA,
-  na.rm = FALSE,
+  na.rm = TRUE,
   row = NULL,
   column = NULL,
   median = TRUE,
@@ -31,6 +31,7 @@ caterpillar(
   medlwd = lwd,
   medwd = 1,
   padwd = 1,
+  all_ticks = FALSE,
   ...
 )
 }
@@ -44,7 +45,7 @@ that expresses MCMC iterations of a single parameter node.}
 
 \item{x}{Vector of X-coordinates for plotting.}
 
-\item{na.rm}{Whether to exclude NA columns.  Defaults to FALSE.}
+\item{na.rm}{Whether to exclude NA columns.  Defaults to TRUE.}
 
 \item{row}{Row to subset, in the case of a 2-d matrix of parameter nodes in-model.}
 
@@ -93,6 +94,8 @@ adding additional plotting argument \code{log="y"}.}
 
 \item{padwd}{Relative width of padding beyond the median line.  Defaults to 1, and acts as a multiplicative adjustment.}
 
+\item{all_ticks}{Whether to force plotting of all axis tick labels.  Defaults to \code{FALSE}.}
+
 \item{...}{additional plotting arguments}
 }
 \value{
@@ -115,7 +118,7 @@ caterpillar(a, lwd=2)
 caterpillar(a, xax=c("effect 1", "effect 2", "effect 3"))
 
 caterpillar(a, xax=c("effect 1", "effect 2", "effect 3"),
-            horizontal = TRUE)
+            horizontal = TRUE, las=1)
 
 
 ## usage with input as jagsUI object

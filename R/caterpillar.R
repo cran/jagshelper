@@ -10,7 +10,7 @@
 #' that expresses MCMC iterations of a single parameter node.
 #' @param p Parameter name, if input to `df` is a `jagsUI` output object.
 #' @param x Vector of X-coordinates for plotting.
-#' @param na.rm Whether to exclude NA columns.  Defaults to FALSE.
+#' @param na.rm Whether to exclude NA columns.  Defaults to TRUE.
 #' @param row Row to subset, in the case of a 2-d matrix of parameter nodes in-model.
 #' @param column Column to subset, in the case of a 2-d matrix of parameter nodes in-model.
 #' @param median Whether to include medians
@@ -36,6 +36,7 @@
 #' @param medlwd Line width of median line
 #' @param medwd Relative width of median line.  Defaults to 1, and acts as a multiplicative adjustment.
 #' @param padwd Relative width of padding beyond the median line.  Defaults to 1, and acts as a multiplicative adjustment.
+#' @param all_ticks Whether to force plotting of all axis tick labels.  Defaults to `FALSE`.
 #' @param ... additional plotting arguments
 #' @return `NULL`
 #' @seealso \link{envelope}, \link{crossplot}
@@ -50,7 +51,7 @@
 #' caterpillar(a, xax=c("effect 1", "effect 2", "effect 3"))
 #'
 #' caterpillar(a, xax=c("effect 1", "effect 2", "effect 3"),
-#'             horizontal = TRUE)
+#'             horizontal = TRUE, las=1)
 #'
 #'
 #' ## usage with input as jagsUI object
@@ -69,7 +70,7 @@
 caterpillar <- function(df,
                         p=NULL,
                         x=NA,
-                        na.rm=FALSE,
+                        na.rm=TRUE,   # think about why this would't be
                         row=NULL, column=NULL,
                         median=TRUE, mean=FALSE,
                         ci=c(0.5,0.95),
@@ -80,7 +81,8 @@ caterpillar <- function(df,
                         xax=NA,
                         xorder = FALSE, horizontal=FALSE,
                         transform=c("none", "exp", "expit"),
-                        medlwd=lwd, medwd=1, padwd=1,...) {
+                        medlwd=lwd, medwd=1, padwd=1,
+                        all_ticks=FALSE, ...) {
   # ci <- rev(sort(ci))
   # loq <- apply(df, 2, quantile, p=(1-ci)/2, na.rm=T)
   # hiq <- apply(df, 2, quantile, p=1-(1-ci)/2, na.rm=T)
@@ -134,7 +136,8 @@ caterpillar <- function(df,
   df <- as.matrix(df)  ################
   if(na.rm) {
     keep <- which(!is.na(colMeans(df)))
-    df <- df[, keep]
+    # df <- as.matrix(df[, keep])  ################
+    df <- df[, keep, drop=FALSE]
     if(!all(is.na(x))) {
       x <- x[keep]
     }
@@ -157,11 +160,16 @@ caterpillar <- function(df,
       xaxlog <- TRUE
     }
   }
+  if(add & par("xlog")) {
+    xaxlog <- TRUE
+  }
   ### new
 
   ### new
   if(any(is.na(x)) & !all(is.na(x))) {
-    df <- df[, !is.na(x)]
+    # df <- df[, !is.na(x)]
+    df <- df[, which(!is.na(x) & seq_along(x) %in% 1:ncol(df)),
+             drop=FALSE]
     if(any(!is.na(xax))) {
       xax <- xax[!is.na(x)]
     }
@@ -266,9 +274,11 @@ caterpillar <- function(df,
       if(all(is.na(xorig)) | !all(is.na(xaxorig))) {
         plot(NA, type = "l", xlim = cat_lim, xlab = xlab, ylab = ylab,
              main = main, ylim = ci_lim, xaxt = "n", ... = ...)
-        axis(side=1, at=x,
+        smashaxis(side=1, at=x,
              labels = xax[seq_along(x)],
-             las = list(...)$las)
+             las = list(...)$las,
+             cex.axis = list(...)$cex.axis,
+             smashall = all_ticks)
       } else {
         plot(NA, type = "l", xlim = cat_lim, xlab = xlab, ylab = ylab,
              main = main, ylim = ci_lim, ... = ...)
@@ -277,9 +287,11 @@ caterpillar <- function(df,
       if(all(is.na(xorig)) | !all(is.na(xaxorig))) {
         plot(NA, type = "l", ylim = rev(cat_lim), xlab = xlab, ylab = ylab,
              main = main, xlim = ci_lim, yaxt = "n", ... = ...)
-        axis(side=2, at=x,
+        smashaxis(side=2, at=x,
              labels = xax[seq_along(x)],
-             las = list(...)$las)
+             las = list(...)$las,
+             cex.axis = list(...)$cex.axis,
+             smashall = all_ticks)
       } else {
         plot(NA, type = "l", ylim = cat_lim, xlab = xlab, ylab = ylab,
              main = main, xlim = ci_lim, ... = ...) # ylim = rev(xlims)
@@ -344,6 +356,53 @@ caterpillar <- function(df,
   ## new
 }
 
+# a helper function to smash all axis labels together and
+# force all to print
+smashaxis <- function(side, at=NULL, labels=TRUE,
+                      smash=FALSE, smashall=FALSE, ...) {
+  if(!is.null(at) & length(labels) <= 1) {
+    labels <- at
+  }
+  if(!is.null(at) & (length(at) == length(labels)) & smash) {
+    at1 <- at[seq(from=1, by=2, to=length(at))]
+    at2 <- at[seq(from=2, by=2, to=length(at))]
+    labels1 <- labels[seq(from=1, by=2, to=length(at))]
+    labels2 <- labels[seq(from=2, by=2, to=length(at))]
+
+    axis(side=side, at=at1, labels=labels1, ...=...)
+    axis(side=side, at=at2, labels=labels2, ...=...)
+  }
+  if(!is.null(at) & (length(at) == length(labels)) & smashall) {
+    for(iax in seq_along(at)) {
+      axis(side=side, at=at[iax], labels=labels[iax], ...=...)
+    }
+  }
+  if(!smash & !smashall) {
+    axis(side=side, at=at, labels=labels, ...=...)
+  }
+
+  # axis(side=side, at=at, labels=labels, ...=...)
+}
+# plot(1:10, yaxt='n')
+# axis(2, cex.axis=.8)
+# smashaxis(side=2, at=1:10, labels=letters[1:10],
+#           las=1, cex.axis=1.8)
+
+# SS_df <- jags_df(SS_out)
+# trend <- pull_post(SS_df, "trend")
+# rate <- pull_post(SS_df, "rate")
+# caterpillar(rate)
+# caterpillar(rate, all_ticks=TRUE)
+# caterpillar(rate, all_ticks=TRUE, las=2)
+# caterpillar(rate, all_ticks=TRUE, las=2, horizontal=TRUE)
+# caterpillar(rate, all_ticks=TRUE, las=2, horizontal=TRUE,
+#             cex.axis=.2)
+# caterpillar(rate, all_ticks=TRUE, las=2, horizontal=FALSE,
+#             cex.axis=.2)
+# caterpillar(rate, all_ticks=TRUE, las=2, horizontal=FALSE,
+#             cex.axis=.2, xlab="xlab", ylab="ylab")
+# caterpillar(rate, all_ticks=TRUE, las=2, horizontal=FALSE,
+#             cex.axis=.2, xlab="xlab", ylab="ylab", cex.lab=.4)
 
 
 #' Compare Caterpillar Plots
